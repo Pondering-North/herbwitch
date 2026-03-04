@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HerbWitch</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=IM+Fell+English:ital@0;1&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5ead6;
+    --paper-dark: #e8d5b0;
+    --ink: #2c1e0f;
+    --ink-light: #5c3d1e;
+    --moss: #4a6741;
+    --moss-light: #7a9e6f;
+    --amber: #c8853a;
+    --amber-light: #e8a85a;
+    --cream: #fdf6e8;
+    --shadow: rgba(44, 30, 15, 0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background-color: var(--paper);
+    background-image: 
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 20% 50%, rgba(180,140,80,0.12) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, rgba(100,130,80,0.08) 0%, transparent 50%);
+    color: var(--ink);
+    font-family: 'IM Fell English', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === BOTANICAL DECORATIONS === */
+  .botanical-left, .botanical-right {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 180px;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.18;
+  }
+  .botanical-left { left: 0; }
+  .botanical-right { right: 0; transform: scaleX(-1); }
+
+  /* === LAYOUT === */
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* === HEADER === */
+  header {
+    text-align: center;
+    margin-bottom: 52px;
+  }
+
+  .moon-icon {
+    font-size: 28px;
+    display: block;
+    margin-bottom: 8px;
+    animation: float 4s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  h1 {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: clamp(2rem, 6vw, 3.2rem);
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    line-height: 1.1;
+    text-shadow: 1px 2px 0 rgba(200,133,58,0.3);
+  }
+
+  .tagline {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    color: var(--ink-light);
+    font-size: 1.05rem;
+    margin-top: 10px;
+    opacity: 0.85;
+  }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px auto;
+    max-width: 380px;
+  }
+  .divider-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--amber), transparent);
+  }
+  .divider-symbol {
+    color: var(--amber);
+    font-size: 1.1rem;
+  }
+
+  /* === INPUT SECTION === */
+  .input-section {
+    background: var(--cream);
+    border: 1px solid var(--paper-dark);
+    border-radius: 2px;
+    padding: 32px 36px;
+    box-shadow: 4px 6px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.6);
+    position: relative;
+    margin-bottom: 36px;
+  }
+
+  .input-section::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px solid rgba(200,133,58,0.2);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+
+  label {
+    display: block;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.78rem;
+    color: var(--moss);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  textarea {
+    width: 100%;
+    background: rgba(245,234,214,0.5);
+    border: 1px solid var(--paper-dark);
+    border-radius: 2px;
+    padding: 14px 16px;
+    font-family: 'IM Fell English', serif;
+    font-size: 1rem;
+    color: var(--ink);
+    resize: vertical;
+    min-height: 110px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+
+  textarea:focus {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 3px rgba(200,133,58,0.12);
+  }
+
+  textarea::placeholder {
+    color: rgba(92,61,30,0.4);
+    font-style: italic;
+  }
+
+  .submit-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 15px;
+    background: var(--moss);
+    color: var(--cream);
+    border: none;
+    border-radius: 2px;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.12em;
+    cursor: pointer;
+    transition: background 0.25s, transform 0.15s, box-shadow 0.25s;
+    box-shadow: 3px 4px 12px rgba(74,103,65,0.3);
+  }
+
+  .submit-btn:hover:not(:disabled) {
+    background: var(--ink-light);
+    box-shadow: 3px 6px 18px rgba(74,103,65,0.4);
+    transform: translateY(-1px);
+  }
+
+  .submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* === PIPELINE STATUS === */
+  .pipeline {
+    display: none;
+    margin-bottom: 28px;
+    background: var(--cream);
+    border: 1px solid var(--paper-dark);
+    padding: 20px 24px;
+    border-radius: 2px;
+    box-shadow: 2px 4px 12px var(--shadow);
+  }
+
+  .pipeline.visible { display: block; }
+
+  .pipeline-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--moss);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .agents {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .agent {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 2px;
+    border: 1px solid transparent;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+  }
+
+  .agent.waiting {
+    color: rgba(92,61,30,0.45);
+    background: rgba(245,234,214,0.4);
+    border-color: transparent;
+  }
+
+  .agent.active {
+    color: var(--ink);
+    background: rgba(200,133,58,0.08);
+    border-color: rgba(200,133,58,0.3);
+    animation: pulse-border 1.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: rgba(200,133,58,0.3); }
+    50% { border-color: rgba(200,133,58,0.7); }
+  }
+
+  .agent.done {
+    color: var(--moss);
+    background: rgba(74,103,65,0.06);
+    border-color: rgba(74,103,65,0.2);
+  }
+
+  .agent-icon {
+    font-size: 1.1rem;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  .agent-name {
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    flex: 1;
+  }
+
+  .agent-status {
+    font-size: 0.78rem;
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.05em;
+  }
+
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(200,133,58,0.3);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* === RESULTS === */
+  .result-section {
+    display: none;
+    animation: fadeIn 0.6s ease;
+  }
+
+  .result-section.visible { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-box {
+    background: var(--cream);
+    border: 1px solid var(--paper-dark);
+    border-radius: 2px;
+    padding: 36px 40px;
+    box-shadow: 4px 6px 20px var(--shadow);
+    position: relative;
+  }
+
+  .result-box::before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border: 1px solid rgba(200,133,58,0.18);
+    border-radius: 1px;
+    pointer-events: none;
+  }
+
+  .result-header {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.78rem;
+    color: var(--amber);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .result-content {
+    font-size: 1.02rem;
+    line-height: 1.8;
+    color: var(--ink);
+  }
+
+  .result-content h3 {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.95rem;
+    color: var(--moss);
+    margin: 24px 0 10px;
+    letter-spacing: 0.06em;
+  }
+
+  .result-content h3:first-child { margin-top: 0; }
+
+  .result-content p { margin-bottom: 12px; }
+
+  .herb-card {
+    background: rgba(245,234,214,0.6);
+    border-left: 3px solid var(--moss-light);
+    padding: 14px 18px;
+    margin: 14px 0;
+    border-radius: 0 2px 2px 0;
+  }
+
+  .herb-name {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.88rem;
+    color: var(--moss);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  .herb-desc {
+    font-size: 0.96rem;
+    line-height: 1.7;
+    color: var(--ink-light);
+  }
+
+  .disclaimer {
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(200,133,58,0.25);
+    font-size: 0.82rem;
+    font-style: italic;
+    color: rgba(92,61,30,0.6);
+    text-align: center;
+    font-family: 'Lato', sans-serif;
+  }
+
+  .error-box {
+    background: rgba(200,80,50,0.06);
+    border: 1px solid rgba(200,80,50,0.25);
+    padding: 20px 24px;
+    border-radius: 2px;
+    color: #7a2d1e;
+    font-style: italic;
+  }
+
+  /* === FOOTER === */
+  footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(200,133,58,0.2);
+    font-size: 0.8rem;
+    color: rgba(92,61,30,0.45);
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.06em;
+  }
+
+  /* === SVG BOTANICALS === */
+  svg.botanical { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+
+<!-- Left botanical -->
+<div class="botanical-left">
+  <svg class="botanical" viewBox="0 0 180 900" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#4a6741" stroke-width="1.2">
+      <!-- Stem -->
+      <path d="M90 900 Q85 750 80 600 Q75 450 88 300 Q95 200 85 100"/>
+      <!-- Leaves along stem -->
+      <path d="M85 800 Q30 760 10 720 Q60 730 85 780" fill="rgba(74,103,65,0.4)"/>
+      <path d="M83 720 Q130 690 160 650 Q120 665 83 700" fill="rgba(74,103,65,0.35)"/>
+      <path d="M81 620 Q20 580 5 530 Q50 555 82 600" fill="rgba(74,103,65,0.4)"/>
+      <path d="M82 530 Q135 510 165 470 Q120 490 83 520" fill="rgba(74,103,65,0.35)"/>
+      <path d="M83 430 Q25 400 8 355 Q55 375 84 415" fill="rgba(74,103,65,0.38)"/>
+      <path d="M84 340 Q140 315 160 270 Q115 295 85 325" fill="rgba(74,103,65,0.32)"/>
+      <path d="M85 250 Q35 215 15 170 Q60 195 86 238" fill="rgba(74,103,65,0.35)"/>
+      <path d="M85 160 Q130 140 155 100 Q110 120 86 150" fill="rgba(74,103,65,0.3)"/>
+      <!-- Small flowers at top -->
+      <circle cx="85" cy="90" r="4" fill="rgba(200,133,58,0.5)"/>
+      <circle cx="75" cy="70" r="3" fill="rgba(200,133,58,0.4)"/>
+      <circle cx="95" cy="65" r="3.5" fill="rgba(200,133,58,0.45)"/>
+      <circle cx="80" cy="50" r="2.5" fill="rgba(200,133,58,0.35)"/>
+    </g>
+  </svg>
+</div>
+
+<div class="botanical-right">
+  <svg class="botanical" viewBox="0 0 180 900" xmlns="http://www.w3.org/2000/svg">
+    <g fill="none" stroke="#4a6741" stroke-width="1.2">
+      <path d="M90 900 Q85 750 80 600 Q75 450 88 300 Q95 200 85 100"/>
+      <path d="M85 800 Q30 760 10 720 Q60 730 85 780" fill="rgba(74,103,65,0.4)"/>
+      <path d="M83 720 Q130 690 160 650 Q120 665 83 700" fill="rgba(74,103,65,0.35)"/>
+      <path d="M81 620 Q20 580 5 530 Q50 555 82 600" fill="rgba(74,103,65,0.4)"/>
+      <path d="M82 530 Q135 510 165 470 Q120 490 83 520" fill="rgba(74,103,65,0.35)"/>
+      <path d="M83 430 Q25 400 8 355 Q55 375 84 415" fill="rgba(74,103,65,0.38)"/>
+      <path d="M84 340 Q140 315 160 270 Q115 295 85 325" fill="rgba(74,103,65,0.32)"/>
+      <path d="M85 250 Q35 215 15 170 Q60 195 86 238" fill="rgba(74,103,65,0.35)"/>
+      <path d="M85 160 Q130 140 155 100 Q110 120 86 150" fill="rgba(74,103,65,0.3)"/>
+      <circle cx="85" cy="90" r="4" fill="rgba(200,133,58,0.5)"/>
+      <circle cx="75" cy="70" r="3" fill="rgba(200,133,58,0.4)"/>
+      <circle cx="95" cy="65" r="3.5" fill="rgba(200,133,58,0.45)"/>
+      <circle cx="80" cy="50" r="2.5" fill="rgba(200,133,58,0.35)"/>
+    </g>
+  </svg>
+</div>
+
+<div class="container">
+  <header>
+    <span class="moon-icon">🌙</span>
+    <h1>HerbWitch</h1>
+    <p class="tagline">Herbal wisdom for the body and spirit</p>
+    <div class="divider">
+      <div class="divider-line"></div>
+      <span class="divider-symbol">✦</span>
+      <div class="divider-line"></div>
+    </div>
+  </header>
+
+  <div class="input-section">
+    <label for="ailment-input">What's ailing you?</label>
+    <textarea 
+      id="ailment-input" 
+      placeholder="e.g. I have a tension headache and my stomach feels unsettled after eating…"
+    ></textarea>
+    <button class="submit-btn" id="submit-btn" onclick="runPipeline()">
+      ✦ &nbsp; Consult the Herb Witch &nbsp; ✦
+    </button>
+  </div>
+
+  <!-- Pipeline status -->
+  <div class="pipeline" id="pipeline">
+    <div class="pipeline-title">🌿 &nbsp; Spirits at work…</div>
+    <div class="agents">
+      <div class="agent waiting" id="agent-1">
+        <span class="agent-icon">🔮</span>
+        <span class="agent-name">Processing Request</span>
+        <span class="agent-status" id="status-1">waiting</span>
+      </div>
+      <div class="agent waiting" id="agent-2">
+        <span class="agent-icon">📜</span>
+        <span class="agent-name">Searching Sources</span>
+        <span class="agent-status" id="status-2">waiting</span>
+      </div>
+      <div class="agent waiting" id="agent-3">
+        <span class="agent-icon">⚗️</span>
+        <span class="agent-name">Refining Knowledge</span>
+        <span class="agent-status" id="status-3">waiting</span>
+      </div>
+      <div class="agent waiting" id="agent-4">
+        <span class="agent-icon">🌿</span>
+        <span class="agent-name">Crafting Your Remedy </span>
+        <span class="agent-status" id="status-4">waiting</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="result-section" id="result-section">
+    <div class="result-box" id="result-box"></div>
+  </div>
+
+  <footer>
+    ✦ &nbsp; For educational purposes only. Always consult a healthcare provider for medical concerns. &nbsp; ✦
+  </footer>
+</div>
+
+<script>
+const API_URL = "https://api.anthropic.com/v1/messages";
+const MODEL = "claude-sonnet-4-20250514";
+
+function setAgent(n, state, statusText) {
+  const agent = document.getElementById(`agent-${n}`);
+  const status = document.getElementById(`status-${n}`);
+  agent.className = `agent ${state}`;
+  if (state === 'active') {
+    status.innerHTML = `<span class="spinner"></span>`;
+  } else if (state === 'done') {
+    status.textContent = '✓ done';
+  } else {
+    status.textContent = statusText || 'waiting';
+  }
+}
+
+async function callClaude(systemPrompt, userMessage, useWebSearch = false) {
+  const body = {
+    model: MODEL,
+    max_tokens: 1000,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }]
+  };
+
+  if (useWebSearch) {
+    body.tools = [{ type: "web_search_20250305", name: "web_search" }];
+  }
+
+  const resp = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!resp.ok) throw new Error(`API error: ${resp.status}`);
+  const data = await resp.json();
+
+  // Extract text from all content blocks
+  return data.content
+    .filter(b => b.type === "text")
+    .map(b => b.text)
+    .join("\n");
+}
+
+function renderResult(markdown) {
+  // Simple markdown-ish rendering
+  const box = document.getElementById("result-box");
+  
+  // Parse herb cards (lines starting with **HerbName** pattern)
+  let html = `<div class="result-header">🌿 &nbsp; Your Herbal Remedy</div><div class="result-content">`;
+
+  const lines = markdown.split('\n');
+  let inCard = false;
+  let cardContent = '';
+  let cardName = '';
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Detect herb section headers (##)
+    if (line.startsWith('## ')) {
+      if (inCard) { html += `<div class="herb-card"><span class="herb-name">${cardName}</span><span class="herb-desc">${cardContent.trim()}</span></div>`; inCard = false; cardContent = ''; }
+      html += `<h3>${line.replace('## ', '')}</h3>`;
+    } else if (line.startsWith('# ')) {
+      if (inCard) { html += `<div class="herb-card"><span class="herb-name">${cardName}</span><span class="herb-desc">${cardContent.trim()}</span></div>`; inCard = false; cardContent = ''; }
+      html += `<h3>${line.replace('# ', '')}</h3>`;
+    } else if (/^\*\*(.+?)\*\*/.test(line) && line.length < 80 && !line.includes('Note')) {
+      // Herb name card
+      if (inCard) { html += `<div class="herb-card"><span class="herb-name">${cardName}</span><span class="herb-desc">${cardContent.trim()}</span></div>`; cardContent = ''; }
+      inCard = true;
+      cardName = line.match(/^\*\*(.+?)\*\*/)[1];
+      const rest = line.replace(/^\*\*(.+?)\*\*[:\s—-]*/, '');
+      if (rest) cardContent = rest + ' ';
+    } else if (inCard && line) {
+      cardContent += line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + ' ';
+    } else if (!inCard && line) {
+      if (inCard) { /* skip */ }
+      html += `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')}</p>`;
+    }
+  }
+
+  if (inCard && cardContent) {
+    html += `<div class="herb-card"><span class="herb-name">${cardName}</span><span class="herb-desc">${cardContent.trim()}</span></div>`;
+  }
+
+  html += `</div><div class="disclaimer">🌙 This is folk & traditional knowledge, not medical advice. Consult your physician or herbalist before use, especially if pregnant, nursing, or on medications.</div>`;
+  box.innerHTML = html;
+}
+
+async function runPipeline() {
+  const ailment = document.getElementById("ailment-input").value.trim();
+  if (!ailment) {
+    alert("Please describe your ailment first.");
+    return;
+  }
+
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+
+  document.getElementById("pipeline").classList.add("visible");
+  document.getElementById("result-section").classList.remove("visible");
+
+  try {
+    // === AGENT 1: Interpreter ===
+    setAgent(1, 'active');
+    const interpreted = await callClaude(
+      `You are The Interpreter. Your only job is to extract and clearly list the physical ailments or symptoms from the user's message. Be concise. Output only a clean, comma-separated list of ailments. Do not add recommendations or explanations.`,
+      ailment
+    );
+    setAgent(1, 'done');
+
+    // === AGENT 2: Seeker (with web search) ===
+    setAgent(2, 'active');
+    const researched = await callClaude(
+      `You are The Seeker, a botanical researcher specializing in West Coast North American medicinal herbs. Search the web for reputable information (from sources like NCCIH, university herbalism programs, PubMed, peer-reviewed ethnobotany resources, or established herbalism institutions) about herbal teas specifically from West Coast plants (California, Oregon, Washington, BC) used to treat the following ailments. Return raw research notes including herb names, sources found, and key findings. Be specific about West Coast native or commonly grown herbs.`,
+      `Research herbal teas for these ailments: ${interpreted}`,
+      true // use web search
+    );
+    setAgent(2, 'done');
+
+    // === AGENT 3: Distiller ===
+    setAgent(3, 'active');
+    const distilled = await callClaude(
+      `You are The Distiller. You receive raw herbal research notes and your job is to filter and organize them. Keep only:
+- Herbs that are native to or commonly grown on the West Coast (CA, OR, WA, BC)
+- Recommendations supported by at least traditional use or some scientific backing
+- Remove any unsafe or unverified claims
+- Organize by ailment, listing herb name, preparation method, and key benefit
+Output structured notes only, no prose introduction.`,
+      researched
+    );
+    setAgent(3, 'done');
+
+    // === AGENT 4: The Witch ===
+    setAgent(4, 'active');
+    const remedy = await callClaude(
+      `You are The Herb Witch — wise, warm, and poetic but grounded in real knowledge. You receive organized herbal research notes and craft a beautiful, readable response for someone seeking natural relief. Format your response with:
+- A warm opening acknowledging their ailment
+- For each recommended herb, use the format: **Herb Name** — then describe it, how to prepare the tea, when to drink it, and what it helps with
+- Use ## headers to separate ailment sections if multiple ailments
+- Close with a gentle note about listening to their body
+Write in a warm, slightly mystical but trustworthy tone. Be specific and practical. Keep total response under 600 words.`,
+      `The person's original complaint: "${ailment}"\n\nResearched remedies:\n${distilled}`
+    );
+    setAgent(4, 'done');
+
+    // Show results
+    document.getElementById("result-section").classList.add("visible");
+    renderResult(remedy);
+
+  } catch (err) {
+    document.getElementById("result-section").classList.add("visible");
+    document.getElementById("result-box").innerHTML = `
+      <div class="error-box">
+        ⚠️ The spirits encountered a disturbance: ${err.message}. Please try again.
+      </div>`;
+    console.error(err);
+  }
+
+  btn.disabled = false;
+}
+
+// Allow Enter to not submit (it's a textarea)
+document.getElementById("ailment-input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && e.metaKey) runPipeline();
+});
+</script>
+</body>
+</html>
