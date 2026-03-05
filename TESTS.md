@@ -122,10 +122,17 @@
 
 ---
 
-### TEST-006 — Agent 2: The Seeker (web search)
+### TEST-006 — Agent 2: The Seeker (source-pinned web search)
 **Status:** ✅ Passing  
-**Feature:** Second agent performs a live web search for herbal remedies.  
+**Feature:** Second agent performs a web search restricted to five approved domains only.  
 **Element:** `#agent-2`, `#status-2`
+
+**Approved domains:**
+- botanicalmedicine.org
+- nccih.nih.gov
+- herbalgram.org
+- ods.od.nih.gov
+- mskcc.org
 
 **Steps:**
 1. Submit any ailment query
@@ -134,16 +141,17 @@
 
 **Expected Result:**
 - Agent 2 activates after Agent 1 completes
-- Spinner shows during search (this is the slowest agent)
+- Spinner shows during search
+- Output contains herb findings with source URLs only from approved domains
 - Completes and passes results to Agent 3
 
-**Notes:** This agent uses `web_search_20250305` tool. Most rate limit (429) errors surface here due to large search result tokens.
+**Notes:** Output capped at 400 words to reduce token usage. Rate limit (429) errors are less likely now due to tighter prompt and smaller output.
 
 ---
 
-### TEST-007 — Agent 3: The Distiller
+### TEST-007 — Agent 3: The Distiller (strict source validation)
 **Status:** ✅ Passing  
-**Feature:** Third agent filters and organizes research results.  
+**Feature:** Third agent discards any herb not backed by an approved source URL, then structures passing results.  
 **Element:** `#agent-3`, `#status-3`
 
 **Steps:**
@@ -152,13 +160,17 @@
 
 **Expected Result:**
 - Activates after Agent 2 completes
-- Completes and passes distilled notes to Agent 4
+- Any herb without a valid approved-domain source URL is discarded
+- Output is structured blocks: HERB / AILMENT / BENEFIT / PREP / SOURCE
+- Completes and passes only verified herbs to Agent 4
+
+**Notes:** This is the hallucination firewall — if Agent 2 returns anything from an unapproved source, it gets dropped here.
 
 ---
 
-### TEST-008 — Agent 4: The Witch
+### TEST-008 — Agent 4: The Witch (with mandatory citations)
 **Status:** ✅ Passing  
-**Feature:** Fourth agent writes the final warm, readable remedy response.  
+**Feature:** Fourth agent writes the final remedy response and must cite a source URL for every herb.  
 **Element:** `#agent-4`, `#status-4`
 
 **Steps:**
@@ -168,7 +180,27 @@
 **Expected Result:**
 - Activates after Agent 3 completes
 - On completion, result section becomes visible
-- Remedy cards render below the pipeline
+- Every herb card includes a *Source: [URL]* line
+- Source renders as a clickable `📖 domain.com` link in the UI
+
+**Notes:** Agent 4 is instructed to never recommend an herb without citing its source.
+
+---
+
+### TEST-016 — Source Citation Links
+**Status:** ⚠️ Untested  
+**Feature:** Each herb card displays a clickable source link to its approved reference URL.  
+**Element:** `.source-link`
+
+**Steps:**
+1. Complete a full pipeline run
+2. Inspect each herb card in the result
+
+**Expected Result:**
+- Each herb card contains a `📖 domain.com` link
+- Link opens the source URL in a new tab
+- Link styled with dashed moss-green underline, turns amber on hover
+- Source domain is one of the five approved domains
 
 ---
 
@@ -306,3 +338,7 @@ curl -X POST http://localhost:3000/api/claude \
 | Date | Test | Change |
 |---|---|---|
 | 2026-03-05 | All | Initial harness created from v1 feature set |
+| 2026-03-05 | TEST-006 | Agent 2 now source-pinned to 5 approved domains, output capped at 400 words |
+| 2026-03-05 | TEST-007 | Agent 3 now strictly discards any herb without an approved-domain source URL |
+| 2026-03-05 | TEST-008 | Agent 4 now required to cite source URL for every herb recommendation |
+| 2026-03-05 | TEST-016 | New test added for clickable source citation links in result cards |
