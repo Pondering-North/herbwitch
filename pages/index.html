@@ -370,6 +370,22 @@
     color: var(--ink-light);
   }
 
+  .source-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.82rem;
+    font-family: 'Lato', sans-serif;
+    font-weight: 400;
+    color: var(--moss);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--moss-light);
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .source-link:hover {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+
   .disclaimer {
     margin-top: 28px;
     padding-top: 18px;
@@ -514,7 +530,7 @@
 </div>
 
 <script>
-const API_URL = "/api/claude";
+const API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = "claude-sonnet-4-20250514";
 
 function setAgent(n, state, statusText) {
@@ -588,10 +604,25 @@ function renderResult(markdown) {
       const rest = line.replace(/^\*\*(.+?)\*\*[:\s—-]*/, '');
       if (rest) cardContent = rest + ' ';
     } else if (inCard && line) {
-      cardContent += line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + ' ';
+      // Render *Source: URL* lines as clickable citation links
+      const sourceMatch = line.match(/^\*Source:\s*(https?:\/\/[^\s*]+)\*?/i);
+      if (sourceMatch) {
+        const url = sourceMatch[1];
+        const domain = new URL(url).hostname.replace('www.', '');
+        cardContent += `<a class="source-link" href="${url}" target="_blank" rel="noopener">📖 ${domain}</a> `;
+      } else {
+        cardContent += line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') + ' ';
+      }
     } else if (!inCard && line) {
-      if (inCard) { /* skip */ }
-      html += `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')}</p>`;
+      // Render standalone *Source: URL* lines as citations too
+      const sourceMatch = line.match(/^\*Source:\s*(https?:\/\/[^\s*]+)\*?/i);
+      if (sourceMatch) {
+        const url = sourceMatch[1];
+        const domain = new URL(url).hostname.replace('www.', '');
+        html += `<p><a class="source-link" href="${url}" target="_blank" rel="noopener">📖 ${domain}</a></p>`;
+      } else {
+        html += `<p>${line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>')}</p>`;
+      }
     }
   }
 
@@ -617,46 +648,47 @@ async function runPipeline() {
   document.getElementById("result-section").classList.remove("visible");
 
   try {
+    // Approved sources — only these domains are trusted
+    const APPROVED_SOURCES = [
+      "https://www.botanicalmedicine.org/",
+      "https://www.nccih.nih.gov/",
+      "https://www.herbalgram.org/resources/healthy-ingredients/",
+      "https://ods.od.nih.gov/factsheets/list-all/",
+      "https://www.mskcc.org/cancer-care/diagnosis-treatment/symptom-management/integrative-medicine/herbs"
+    ];
+    const APPROVED_DOMAINS = APPROVED_SOURCES.map(u => new URL(u).hostname).join(", ");
+    const SOURCE_LIST = APPROVED_SOURCES.map((u, i) => `${i+1}. ${u}`).join("\n");
+
     // === AGENT 1: Interpreter ===
     setAgent(1, 'active');
     const interpreted = await callClaude(
-      `You are The Interpreter. Your only job is to extract and clearly list the physical ailments or symptoms from the user's message. Be concise. Output only a clean, comma-separated list of ailments. Do not add recommendations or explanations.`,
+      `You are The Interpreter. Extract physical ailments from the user's message. Output ONLY a comma-separated list of ailments. No explanations, no recommendations.`,
       ailment
     );
     setAgent(1, 'done');
 
-    // === AGENT 2: Seeker (with web search) ===
+    // === AGENT 2: Seeker (source-pinned web search) ===
     setAgent(2, 'active');
     const researched = await callClaude(
-      `You are The Seeker, a botanical researcher specializing in West Coast North American medicinal herbs. Search the web for reputable information (from sources like NCCIH, university herbalism programs, PubMed, peer-reviewed ethnobotany resources, or established herbalism institutions) about herbal teas specifically from West Coast plants (California, Oregon, Washington, BC) used to treat the following ailments. Return raw research notes including herb names, sources found, and key findings. Be specific about West Coast native or commonly grown herbs.`,
-      `Research herbal teas for these ailments: ${interpreted}`,
-      true // use web search
+      `You are The Seeker, a West Coast botanical researcher. Search ONLY these approved domains for herbal tea remedies:\n${SOURCE_LIST}\n\nRules:\n- Search only the domains listed above. Do not use any other sources.\n- Focus on West Coast herbs (CA, OR, WA, BC)\n- For each herb found, record: herb name, ailment it treats, full source URL, and one key finding\n- Output format: bullet list with source URLs included\n- Keep output under 400 words`,
+      `Search the approved sources for herbal teas treating: ${interpreted}`,
+      true
     );
     setAgent(2, 'done');
 
-    // === AGENT 3: Distiller ===
+    // === AGENT 3: Distiller (strict source validation) ===
     setAgent(3, 'active');
     const distilled = await callClaude(
-      `You are The Distiller. You receive raw herbal research notes and your job is to filter and organize them. Keep only:
-- Herbs that are native to or commonly grown on the West Coast (CA, OR, WA, BC)
-- Recommendations supported by at least traditional use or some scientific backing
-- Remove any unsafe or unverified claims
-- Organize by ailment, listing herb name, preparation method, and key benefit
-Output structured notes only, no prose introduction.`,
+      `You are The Distiller. Filter herbal research notes strictly.\n\nAPPROVED DOMAINS: ${APPROVED_DOMAINS}\n\nDiscard ANY entry that:\n- Does not include a source URL from an approved domain above\n- Makes an unverified or unsafe claim\n- Is not a West Coast herb (CA, OR, WA, BC)\n\nFor each herb that passes, output exactly:\nHERB: [name]\nAILMENT: [ailment it treats]\nBENEFIT: [one sentence]\nPREP: [how to make the tea]\nSOURCE: [full URL from approved domain]\n\nOutput ONLY these blocks. No intro, no prose.`,
       researched
     );
     setAgent(3, 'done');
 
-    // === AGENT 4: The Witch ===
+    // === AGENT 4: The Witch (with mandatory citations) ===
     setAgent(4, 'active');
     const remedy = await callClaude(
-      `You are The Herb Witch — wise, warm, and poetic but grounded in real knowledge. You receive organized herbal research notes and craft a beautiful, readable response for someone seeking natural relief. Format your response with:
-- A warm opening acknowledging their ailment
-- For each recommended herb, use the format: **Herb Name** — then describe it, how to prepare the tea, when to drink it, and what it helps with
-- Use ## headers to separate ailment sections if multiple ailments
-- Close with a gentle note about listening to their body
-Write in a warm, slightly mystical but trustworthy tone. Be specific and practical. Keep total response under 600 words.`,
-      `The person's original complaint: "${ailment}"\n\nResearched remedies:\n${distilled}`
+      `You are The Herb Witch — warm, poetic, and trustworthy. Write a herbal remedy response using ONLY the verified herbs provided.\n\nFormat:\n- Warm one-sentence opening\n- For each herb: **Herb Name** — description, how to prepare, when to drink, what it helps\n- After each herb add: *Source: [URL]* on its own line\n- Use ## headers if multiple ailments\n- Close with one gentle sentence about listening to their body\n- Under 500 words total\n\nIMPORTANT: Cite the source URL for every herb. Never recommend an herb without its source.`,
+      `Original complaint: "${ailment}"\n\nVerified remedies:\n${distilled}`
     );
     setAgent(4, 'done');
 
