@@ -543,17 +543,13 @@ function setAgent(n, state, statusText) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-async function callClaude(systemPrompt, userMessage, useWebSearch = false, maxTokens = 600) {
+async function callClaude(systemPrompt, userMessage, maxTokens = 600) {
   const body = {
     model: MODEL,
     max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }]
   };
-
-  if (useWebSearch) {
-    body.tools = [{ type: "web_search_20250305", name: "web_search" }];
-  }
 
   const resp = await fetch(API_URL, {
     method: "POST",
@@ -564,11 +560,20 @@ async function callClaude(systemPrompt, userMessage, useWebSearch = false, maxTo
   if (!resp.ok) throw new Error(`API error: ${resp.status}`);
   const data = await resp.json();
 
-  // Extract text from all content blocks
   return data.content
     .filter(b => b.type === "text")
     .map(b => b.text)
     .join("\n");
+}
+
+async function fetchResearch(ailments) {
+  const resp = await fetch("/api/research", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ailments })
+  });
+  if (!resp.ok) throw new Error(`Research fetch failed: ${resp.status}`);
+  return resp.json();
 }
 
 function renderResult(markdown) {
@@ -645,63 +650,36 @@ async function runPipeline() {
   document.getElementById("result-section").classList.remove("visible");
 
   try {
-    // Approved sources — only these domains are trusted
-    const APPROVED_SOURCES = [
-      "https://www.botanicalmedicine.org/",
-      "https://www.nccih.nih.gov/",
-      "https://www.herbalgram.org/resources/healthy-ingredients/",
-      "https://ods.od.nih.gov/factsheets/list-all/",
-      "https://www.mskcc.org/cancer-care/diagnosis-treatment/symptom-management/integrative-medicine/herbs"
-    ];
-    const APPROVED_DOMAINS = APPROVED_SOURCES.map(u => new URL(u).hostname).join(", ");
-    const SOURCE_LIST = APPROVED_SOURCES.map((u, i) => `${i+1}. ${u}`).join("\n");
-
     // === AGENT 1: Interpreter ===
     setAgent(1, 'active');
     const interpreted = await callClaude(
       `You are The Interpreter. Extract physical ailments from the user's message. Output ONLY a comma-separated list of ailments. No explanations, no recommendations.`,
       ailment,
-      false, 150  // tiny output — just a list
+      150
     );
     setAgent(1, 'done');
 
-    await sleep(2000);
-
-    // === AGENT 2: Researcher (search + filter in one pass) ===
+    // === AGENT 2: Researcher — server fetches approved sources, no Claude web search ===
     setAgent(2, 'active');
-    const distilled = await callClaude(
-      `You are The Researcher, a West Coast botanical expert. In a single pass, search the approved sources AND filter the results.
-
-APPROVED SOURCES (search ONLY these):
-${SOURCE_LIST}
-
-Step 1 — Search for herbal teas treating the given ailments. Only use the approved domains above.
-Step 2 — From your search results, keep ONLY herbs that:
-  - Have a source URL from an approved domain
-  - Are native to or commonly grown on the West Coast (CA, OR, WA, BC)
-  - Have a verifiable traditional or scientific basis
-
-Step 3 — For each herb that passes, output exactly this structure:
-HERB: [name]
-AILMENT: [ailment it treats]
-BENEFIT: [one sentence max]
-PREP: [how to make the tea]
-SOURCE: [full URL from approved domain]
-
-Output ONLY these blocks. No intro, no prose, no unapproved sources.`,
-      `Find verified herbal teas for: ${interpreted}`,
-      true, 600
-    );
+    const { context, sourceCount } = await fetchResearch(interpreted);
     setAgent(2, 'done');
 
-    await sleep(2000);
-
-    // === AGENT 3: The Witch (with mandatory citations) ===
+    // === AGENT 3: The Witch — synthesizes pre-fetched research into a response ===
     setAgent(3, 'active');
     const remedy = await callClaude(
-      `You are The Herb Witch — warm, poetic, and trustworthy. Write a herbal remedy response using ONLY the verified herbs provided.\n\nFormat:\n- Warm one-sentence opening\n- For each herb: **Herb Name** — description, how to prepare, when to drink, what it helps\n- After each herb add: *Source: [URL]* on its own line\n- Use ## headers if multiple ailments\n- Close with one gentle sentence about listening to their body\n- Under 500 words total\n\nIMPORTANT: Cite the source URL for every herb. Never recommend an herb without its source.`,
-      `Original complaint: "${ailment}"\n\nVerified remedies:\n${distilled}`,
-      false, 600
+      `You are a practical herbalist. You are given excerpts from trusted herbal medicine sources. Synthesize them into a clear, direct remedy response.
+
+Rules:
+- Recommend ONLY herbs mentioned in the provided source excerpts
+- For each herb: bold the name (**Herb Name**), state plainly what it helps with, give specific preparation instructions (quantity, steep time, water temperature), and say when to drink it
+- After each herb, add: *Source: [the SOURCE url from the excerpt]*
+- Use ## headers to separate sections if the person has multiple ailments
+- End with one plain sentence: consult a doctor if symptoms persist or worsen
+- Keep total response under 400 words
+- No poetic language, no flowery descriptions, no mystical tone — just clear, useful information
+- If the excerpts contain no relevant herbs, say so plainly`,
+      `The person's complaint: "${ailment}"\n\nResearch excerpts from trusted sources:\n\n${context}`,
+      700
     );
     setAgent(3, 'done');
 
