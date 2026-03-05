@@ -18,7 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 // Serve the HTML frontend
-app.use(express.static(__dirname));
+app.use(express.static(path.join(__dirname, "pages")));
 
 // ── Proxy route ──────────────────────────────────────────────
 app.post("/api/claude", async (req, res) => {
