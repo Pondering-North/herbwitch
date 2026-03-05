@@ -513,7 +513,7 @@
       </div>
       <div class="agent waiting" id="agent-4">
         <span class="agent-icon">🌿</span>
-        <span class="agent-name">Crafting Your Remedy</span>
+        <span class="agent-name">Crafting Your Remedy </span>
         <span class="agent-status" id="status-4">waiting</span>
       </div>
     </div>
@@ -546,10 +546,12 @@ function setAgent(n, state, statusText) {
   }
 }
 
-async function callClaude(systemPrompt, userMessage, useWebSearch = false) {
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function callClaude(systemPrompt, userMessage, useWebSearch = false, maxTokens = 600) {
   const body = {
     model: MODEL,
-    max_tokens: 1000,
+    max_tokens: maxTokens,
     system: systemPrompt,
     messages: [{ role: "user", content: userMessage }]
   };
@@ -663,32 +665,41 @@ async function runPipeline() {
     setAgent(1, 'active');
     const interpreted = await callClaude(
       `You are The Interpreter. Extract physical ailments from the user's message. Output ONLY a comma-separated list of ailments. No explanations, no recommendations.`,
-      ailment
+      ailment,
+      false, 150  // tiny output — just a list
     );
     setAgent(1, 'done');
+
+    await sleep(2000); // brief pause between agents to avoid rate limits
 
     // === AGENT 2: Seeker (source-pinned web search) ===
     setAgent(2, 'active');
     const researched = await callClaude(
       `You are The Seeker, a West Coast botanical researcher. Search ONLY these approved domains for herbal tea remedies:\n${SOURCE_LIST}\n\nRules:\n- Search only the domains listed above. Do not use any other sources.\n- Focus on West Coast herbs (CA, OR, WA, BC)\n- For each herb found, record: herb name, ailment it treats, full source URL, and one key finding\n- Output format: bullet list with source URLs included\n- Keep output under 400 words`,
       `Search the approved sources for herbal teas treating: ${interpreted}`,
-      true
+      true, 500  // cap search output to reduce token usage
     );
     setAgent(2, 'done');
+
+    await sleep(3000); // longer pause — Agent 2 uses most tokens
 
     // === AGENT 3: Distiller (strict source validation) ===
     setAgent(3, 'active');
     const distilled = await callClaude(
       `You are The Distiller. Filter herbal research notes strictly.\n\nAPPROVED DOMAINS: ${APPROVED_DOMAINS}\n\nDiscard ANY entry that:\n- Does not include a source URL from an approved domain above\n- Makes an unverified or unsafe claim\n- Is not a West Coast herb (CA, OR, WA, BC)\n\nFor each herb that passes, output exactly:\nHERB: [name]\nAILMENT: [ailment it treats]\nBENEFIT: [one sentence]\nPREP: [how to make the tea]\nSOURCE: [full URL from approved domain]\n\nOutput ONLY these blocks. No intro, no prose.`,
-      researched
+      researched,
+      false, 400  // structured blocks only — no prose
     );
     setAgent(3, 'done');
+
+    await sleep(2000);
 
     // === AGENT 4: The Witch (with mandatory citations) ===
     setAgent(4, 'active');
     const remedy = await callClaude(
       `You are The Herb Witch — warm, poetic, and trustworthy. Write a herbal remedy response using ONLY the verified herbs provided.\n\nFormat:\n- Warm one-sentence opening\n- For each herb: **Herb Name** — description, how to prepare, when to drink, what it helps\n- After each herb add: *Source: [URL]* on its own line\n- Use ## headers if multiple ailments\n- Close with one gentle sentence about listening to their body\n- Under 500 words total\n\nIMPORTANT: Cite the source URL for every herb. Never recommend an herb without its source.`,
-      `Original complaint: "${ailment}"\n\nVerified remedies:\n${distilled}`
+      `Original complaint: "${ailment}"\n\nVerified remedies:\n${distilled}`,
+      false, 600  // final response — warm but concise
     );
     setAgent(4, 'done');
 

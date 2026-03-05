@@ -37,6 +37,29 @@
 
 ---
 
+### TEST-000 — Server Running Pre-check
+**Status:** ✅ Passing  
+**Feature:** The Express server must be running before the app will function at all.  
+**Element:** Terminal / `npm start`
+
+**Steps:**
+1. Before opening the app, confirm the server is running:
+```bash
+lsof -i :3000
+```
+2. If nothing appears, start it:
+```bash
+npm start
+```
+
+**Expected Result:**
+- Terminal shows: `🌿 HerbWitch server running at http://localhost:3000`
+- `lsof -i :3000` shows a node process listening
+
+**Notes:** A NetworkError on Agent 1 (before any agents complete) almost always means the server is not running. This is the first thing to check.
+
+---
+
 ### TEST-001 — Text Input Field
 **Status:** ✅ Passing  
 **Feature:** User can type a description of their ailment into the textarea.  
@@ -342,3 +365,4 @@ curl -X POST http://localhost:3000/api/claude \
 | 2026-03-05 | TEST-007 | Agent 3 now strictly discards any herb without an approved-domain source URL |
 | 2026-03-05 | TEST-008 | Agent 4 now required to cite source URL for every herb recommendation |
 | 2026-03-05 | TEST-016 | New test added for clickable source citation links in result cards |
+| 2026-03-05 | TEST-000 | Added server pre-check test — NetworkError on Agent 1 = server not running |
