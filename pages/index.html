@@ -503,18 +503,13 @@
       </div>
       <div class="agent waiting" id="agent-2">
         <span class="agent-icon">📜</span>
-        <span class="agent-name">Searching Sources</span>
+        <span class="agent-name">Researching</span>
         <span class="agent-status" id="status-2">waiting</span>
       </div>
       <div class="agent waiting" id="agent-3">
-        <span class="agent-icon">⚗️</span>
-        <span class="agent-name">Refining Knowledge</span>
-        <span class="agent-status" id="status-3">waiting</span>
-      </div>
-      <div class="agent waiting" id="agent-4">
         <span class="agent-icon">🌿</span>
-        <span class="agent-name">Crafting Your Remedy </span>
-        <span class="agent-status" id="status-4">waiting</span>
+        <span class="agent-name">Crafting Your Remedy</span>
+        <span class="agent-status" id="status-3">waiting</span>
       </div>
     </div>
   </div>
@@ -670,38 +665,45 @@ async function runPipeline() {
     );
     setAgent(1, 'done');
 
-    await sleep(2000); // brief pause between agents to avoid rate limits
+    await sleep(2000);
 
-    // === AGENT 2: Seeker (source-pinned web search) ===
+    // === AGENT 2: Researcher (search + filter in one pass) ===
     setAgent(2, 'active');
-    const researched = await callClaude(
-      `You are The Seeker, a West Coast botanical researcher. Search ONLY these approved domains for herbal tea remedies:\n${SOURCE_LIST}\n\nRules:\n- Search only the domains listed above. Do not use any other sources.\n- Focus on West Coast herbs (CA, OR, WA, BC)\n- For each herb found, record: herb name, ailment it treats, full source URL, and one key finding\n- Output format: bullet list with source URLs included\n- Keep output under 400 words`,
-      `Search the approved sources for herbal teas treating: ${interpreted}`,
-      true, 500  // cap search output to reduce token usage
+    const distilled = await callClaude(
+      `You are The Researcher, a West Coast botanical expert. In a single pass, search the approved sources AND filter the results.
+
+APPROVED SOURCES (search ONLY these):
+${SOURCE_LIST}
+
+Step 1 — Search for herbal teas treating the given ailments. Only use the approved domains above.
+Step 2 — From your search results, keep ONLY herbs that:
+  - Have a source URL from an approved domain
+  - Are native to or commonly grown on the West Coast (CA, OR, WA, BC)
+  - Have a verifiable traditional or scientific basis
+
+Step 3 — For each herb that passes, output exactly this structure:
+HERB: [name]
+AILMENT: [ailment it treats]
+BENEFIT: [one sentence max]
+PREP: [how to make the tea]
+SOURCE: [full URL from approved domain]
+
+Output ONLY these blocks. No intro, no prose, no unapproved sources.`,
+      `Find verified herbal teas for: ${interpreted}`,
+      true, 600
     );
     setAgent(2, 'done');
 
-    await sleep(3000); // longer pause — Agent 2 uses most tokens
-
-    // === AGENT 3: Distiller (strict source validation) ===
-    setAgent(3, 'active');
-    const distilled = await callClaude(
-      `You are The Distiller. Filter herbal research notes strictly.\n\nAPPROVED DOMAINS: ${APPROVED_DOMAINS}\n\nDiscard ANY entry that:\n- Does not include a source URL from an approved domain above\n- Makes an unverified or unsafe claim\n- Is not a West Coast herb (CA, OR, WA, BC)\n\nFor each herb that passes, output exactly:\nHERB: [name]\nAILMENT: [ailment it treats]\nBENEFIT: [one sentence]\nPREP: [how to make the tea]\nSOURCE: [full URL from approved domain]\n\nOutput ONLY these blocks. No intro, no prose.`,
-      researched,
-      false, 400  // structured blocks only — no prose
-    );
-    setAgent(3, 'done');
-
     await sleep(2000);
 
-    // === AGENT 4: The Witch (with mandatory citations) ===
-    setAgent(4, 'active');
+    // === AGENT 3: The Witch (with mandatory citations) ===
+    setAgent(3, 'active');
     const remedy = await callClaude(
       `You are The Herb Witch — warm, poetic, and trustworthy. Write a herbal remedy response using ONLY the verified herbs provided.\n\nFormat:\n- Warm one-sentence opening\n- For each herb: **Herb Name** — description, how to prepare, when to drink, what it helps\n- After each herb add: *Source: [URL]* on its own line\n- Use ## headers if multiple ailments\n- Close with one gentle sentence about listening to their body\n- Under 500 words total\n\nIMPORTANT: Cite the source URL for every herb. Never recommend an herb without its source.`,
       `Original complaint: "${ailment}"\n\nVerified remedies:\n${distilled}`,
-      false, 600  // final response — warm but concise
+      false, 600
     );
-    setAgent(4, 'done');
+    setAgent(3, 'done');
 
     // Show results
     document.getElementById("result-section").classList.add("visible");
