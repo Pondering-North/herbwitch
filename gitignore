@@ -1,0 +1,13 @@
+# Environment variables — NEVER commit your API keys!
+.env
+
+# Node
+node_modules/
+npm-debug.log*
+
+# Mac junk
+.DS_Store
+
+# Editor folders
+.vscode/
+.idea/
