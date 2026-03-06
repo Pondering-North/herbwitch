@@ -799,8 +799,9 @@ async function loadDailyFact() {
 
   if (cached) {
     const { fact, url } = JSON.parse(cached);
+    const rendered = fact.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     textEl.className = 'fact-text';
-    textEl.innerHTML = fact;
+    textEl.innerHTML = rendered;
     if (url) sourceEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener">📖 Source</a>`;
     return;
   }
@@ -809,8 +810,9 @@ async function loadDailyFact() {
     const resp = await fetch('/api/fact');
     if (!resp.ok) throw new Error('failed');
     const { fact, url } = await resp.json();
+    const rendered = fact.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
     textEl.className = 'fact-text';
-    textEl.innerHTML = fact;
+    textEl.innerHTML = rendered;
     if (url) sourceEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener">📖 Source</a>`;
     sessionStorage.setItem(cacheKey, JSON.stringify({ fact, url }));
   } catch(e) {
@@ -818,7 +820,7 @@ async function loadDailyFact() {
   }
 }
 
-loadDailyFact();
+document.addEventListener('DOMContentLoaded', loadDailyFact);
 
 // Allow Enter to not submit (it's a textarea)
 document.getElementById("ailment-input").addEventListener("keydown", e => {
@@ -829,10 +831,10 @@ document.getElementById("ailment-input").addEventListener("keydown", e => {
 <div class="fact-widget" id="fact-widget">
   <div class="fact-header">
     <span class="fact-header-dot"></span>
-    Fun Fact of the Day
+    Herb Fact of the Day
   </div>
   <div class="fact-body">
-    <span class="fact-text fact-loading" id="fact-text">Loading…</span>
+    <span class="fact-text fact-loading" id="fact-text">Gathering today's fact…</span>
   </div>
   <div class="fact-source" id="fact-source"></div>
 </div>
