@@ -505,10 +505,14 @@ app.post("/api/claude", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🌿 HerbWitch server running at http://localhost:${PORT}`);
-  const uniqueHerbs = [...new Set(APPROVED_SOURCES.map(s => s.herb))].length;
-  const uniqueSources = [...new Set(APPROVED_SOURCES.map(s => s.name))].length;
-  console.log(`   Herb pages indexed: ${APPROVED_SOURCES.length} (${uniqueHerbs} herbs × ${uniqueSources} sources)`);
-  console.log(`   Open: http://localhost:${PORT}\n`);
-});
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(PORT, () => {
+    console.log(`\n🌿 HerbWitch running at http://localhost:${PORT}`);
+    const uniqueHerbs = [...new Set(APPROVED_SOURCES.map(s => s.herb))].length;
+    const uniqueSources = [...new Set(APPROVED_SOURCES.map(s => s.name))].length;
+    console.log(`   Herb pages indexed: ${APPROVED_SOURCES.length} (${uniqueHerbs} herbs × ${uniqueSources} sources)`);
+    console.log(`   Open: http://localhost:${PORT}\n`);
+  });
+}
+
+export default app;
