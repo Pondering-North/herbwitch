@@ -421,6 +421,94 @@
 
   /* === SVG BOTANICALS === */
   svg.botanical { width: 100%; height: 100%; }
+
+  /* === FUN FACT WIDGET === */
+  .fact-widget {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 260px;
+    background: var(--cream);
+    border: 1px solid var(--paper-dark);
+    border-radius: 2px;
+    box-shadow: 3px 4px 16px var(--shadow);
+    z-index: 100;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  .fact-widget:hover {
+    box-shadow: 4px 6px 20px var(--shadow);
+  }
+  .fact-header {
+    background: var(--moss);
+    color: var(--cream);
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.6rem;
+    letter-spacing: 0.12em;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .fact-header-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--amber-light);
+    flex-shrink: 0;
+  }
+  .fact-body {
+    padding: 14px 16px;
+    min-height: 80px;
+    display: flex;
+    align-items: flex-start;
+  }
+  .fact-text {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--ink-light);
+  }
+  .fact-text strong {
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .fact-source {
+    padding: 0 16px 12px;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.72rem;
+    color: var(--moss);
+  }
+  .fact-source a {
+    color: var(--moss);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--moss-light);
+  }
+  .fact-source a:hover { color: var(--amber); border-color: var(--amber); }
+  .fact-loading {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.8rem;
+    color: var(--ink-light);
+    opacity: 0.6;
+    font-style: italic;
+  }
+  .fact-widget-toggle {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 44px;
+    height: 44px;
+    background: var(--moss);
+    border: none;
+    border-radius: 50%;
+    color: var(--cream);
+    font-size: 1.2rem;
+    cursor: pointer;
+    z-index: 101;
+    box-shadow: 2px 3px 10px var(--shadow);
+    display: none;
+  }
+
 </style>
 </head>
 <body>
@@ -699,10 +787,55 @@ Rules:
   btn.disabled = false;
 }
 
+
+// === FUN FACT OF THE DAY ===
+async function loadDailyFact() {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const cacheKey = 'herbwitch_fact_' + today;
+  const cached = sessionStorage.getItem(cacheKey);
+
+  const textEl = document.getElementById('fact-text');
+  const sourceEl = document.getElementById('fact-source');
+
+  if (cached) {
+    const { fact, url } = JSON.parse(cached);
+    textEl.className = 'fact-text';
+    textEl.innerHTML = fact;
+    if (url) sourceEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener">📖 Source</a>`;
+    return;
+  }
+
+  try {
+    const resp = await fetch('/api/fact');
+    if (!resp.ok) throw new Error('failed');
+    const { fact, url } = await resp.json();
+    textEl.className = 'fact-text';
+    textEl.innerHTML = fact;
+    if (url) sourceEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener">📖 Source</a>`;
+    sessionStorage.setItem(cacheKey, JSON.stringify({ fact, url }));
+  } catch(e) {
+    textEl.textContent = 'Could not load today\'s fact.';
+  }
+}
+
+loadDailyFact();
+
 // Allow Enter to not submit (it's a textarea)
 document.getElementById("ailment-input").addEventListener("keydown", e => {
   if (e.key === "Enter" && e.metaKey) runPipeline();
 });
 </script>
+
+<div class="fact-widget" id="fact-widget">
+  <div class="fact-header">
+    <span class="fact-header-dot"></span>
+    Fun Fact of the Day
+  </div>
+  <div class="fact-body">
+    <span class="fact-text fact-loading" id="fact-text">Loading…</span>
+  </div>
+  <div class="fact-source" id="fact-source"></div>
+</div>
+
 </body>
 </html>

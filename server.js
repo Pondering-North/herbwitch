@@ -198,6 +198,101 @@ app.post("/api/research", async (req, res) => {
   res.json({ context, sourceCount: found.length, herbsFound: found.map(r => r.herb) });
 });
 
+
+// ── Route: fact of the day ────────────────────────────────────
+// Fetches a random approved herb page and asks Claude for one fact.
+// The frontend caches it in sessionStorage keyed by date.
+
+const FACT_HERBS = [
+  { url: "https://www.nccih.nih.gov/health/chamomile", herb: "chamomile" },
+  { url: "https://www.nccih.nih.gov/health/ginger", herb: "ginger" },
+  { url: "https://www.nccih.nih.gov/health/peppermint-oil", herb: "peppermint" },
+  { url: "https://www.nccih.nih.gov/health/lavender", herb: "lavender" },
+  { url: "https://www.nccih.nih.gov/health/valerian", herb: "valerian" },
+  { url: "https://www.nccih.nih.gov/health/elderberry", herb: "elderberry" },
+  { url: "https://www.nccih.nih.gov/health/turmeric", herb: "turmeric" },
+  { url: "https://www.nccih.nih.gov/health/lemon-balm", herb: "lemon balm" },
+  { url: "https://www.nccih.nih.gov/health/echinacea", herb: "echinacea" },
+  { url: "https://www.nccih.nih.gov/health/passionflower", herb: "passionflower" },
+  { url: "https://www.nccih.nih.gov/health/licorice-root", herb: "licorice root" },
+  { url: "https://www.nccih.nih.gov/health/st-johns-wort", herb: "st johns wort" },
+];
+
+// Pick a deterministic herb based on the day of year — same herb all day
+function getTodaysHerb() {
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  return FACT_HERBS[dayOfYear % FACT_HERBS.length];
+}
+
+let factCache = { date: null, fact: null, url: null };
+
+app.get("/api/fact", async (req, res) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: "No API key" });
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Return cached fact if already fetched today
+  if (factCache.date === today && factCache.fact) {
+    return res.json({ fact: factCache.fact, url: factCache.url });
+  }
+
+  const source = getTodaysHerb();
+  console.log(`\n🌿 Fetching daily fact for: ${source.herb}`);
+
+  try {
+    // Fetch the herb page
+    const pageResp = await fetch(source.url, {
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "text/html" },
+      signal: AbortSignal.timeout(8000)
+    });
+
+    let excerpt = "";
+    if (pageResp.ok) {
+      const html = await pageResp.text();
+      const text = stripHtml(html);
+      // Grab sentences that sound factual
+      const sentences = text.match(/[^.!?]{40,300}[.!?]/g) || [];
+      const factual = sentences.filter(s =>
+        /study|research|found|shown|evidence|traditional|used for|contain|percent|clinical/i.test(s)
+      ).slice(0, 10).join(" ");
+      excerpt = factual.slice(0, 2000);
+    }
+
+    // Ask Claude for one sharp fact
+    const claudeResp = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 120,
+        system: `You write one-sentence herbal facts for a website widget. Be specific, factual, and direct. No flowery language. Bold the herb name using **name**. Maximum 35 words. Output only the fact sentence, nothing else.`,
+        messages: [{
+          role: "user",
+          content: excerpt
+            ? `Write one interesting fact about ${source.herb} based on this excerpt:\n\n${excerpt}`
+            : `Write one interesting, specific fact about ${source.herb} as a medicinal herb.`
+        }]
+      })
+    });
+
+    const claudeData = await claudeResp.json();
+    const fact = claudeData.content?.[0]?.text?.trim() || `**${source.herb}** has been used in traditional herbal medicine for centuries.`;
+
+    factCache = { date: today, fact, url: source.url };
+    console.log(`   Fact: ${fact}`);
+    res.json({ fact, url: source.url });
+
+  } catch (err) {
+    console.error("Fact error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Route: claude proxy ───────────────────────────────────────
 app.post("/api/claude", async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;

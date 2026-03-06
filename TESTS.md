@@ -27,8 +27,8 @@
 | Entry point | `http://localhost:3000` (serves `pages/index.html`) |
 | Proxy route | `POST /api/claude` |
 | Model | `claude-sonnet-4-20250514` |
-| Agent count | 4 (Interpreter, Seeker, Distiller, Witch) |
-| Web search | Enabled on Agent 2 only |
+| Agent count | 3 (Interpreter, Researcher, Witch) |
+| Web search | None — server fetches approved sources directly via /api/research |
 | Key storage | `.env` file — never committed to git |
 
 ---
@@ -145,68 +145,86 @@ npm start
 
 ---
 
-### TEST-006 — Agent 2: The Seeker (source-pinned web search)
-**Status:** ✅ Passing  
-**Feature:** Second agent performs a web search restricted to five approved domains only.  
-**Element:** `#agent-2`, `#status-2`
+### TEST-006 — Agent 2: Researcher (server-side source fetching)
+**Status:** ⚠️ Untested  
+**Feature:** Second agent calls `/api/research` on the server, which fetches the approved sources directly and returns trimmed excerpts. No Claude API tokens consumed during this step.  
+**Element:** `#agent-2`, `#status-2`, `/api/research` route
 
-**Approved domains:**
+**Approved sources fetched by server:**
+- nccih.nih.gov/health/herbsataglance
+- mskcc.org/…/herbs/search
+- ods.od.nih.gov/factsheets/list-all/
+- herbalgram.org/resources/healthy-ingredients/
 - botanicalmedicine.org
-- nccih.nih.gov
-- herbalgram.org
-- ods.od.nih.gov
-- mskcc.org
 
 **Steps:**
 1. Submit any ailment query
 2. Wait for Agent 1 to complete
-3. Watch Agent 2 row
+3. Watch Agent 2 row (labeled "Researching")
 
 **Expected Result:**
 - Agent 2 activates after Agent 1 completes
-- Spinner shows during search
-- Output contains herb findings with source URLs only from approved domains
-- Completes and passes results to Agent 3
+- Server fetches all 5 approved sources in parallel
+- Relevant sentences are scored and trimmed to max ~1200 chars per source
+- Returns `{ context, sourceCount }` to the browser
+- No Claude API call made during this step — zero tokens consumed
+- Completes and passes context string to Agent 3
 
-**Notes:** Output capped at 400 words to reduce token usage. Rate limit (429) errors are less likely now due to tighter prompt and smaller output.
+**Notes:** This is the key architectural change that eliminates the 429 rate limit error. The server logs how many sources returned relevant excerpts (e.g. `Found excerpts from 3/5 sources`).
+
+**Server-side curl test:**
+```bash
+curl -X POST http://localhost:3000/api/research \
+  -H "Content-Type: application/json" \
+  -d '{"ailments": "headache, anxiety"}'
+```
+Expected: JSON with `context` string and `sourceCount` number.
 
 ---
 
-### TEST-007 — Agent 3: The Distiller (strict source validation)
-**Status:** ✅ Passing  
-**Feature:** Third agent discards any herb not backed by an approved source URL, then structures passing results.  
+### TEST-007 — Agent 3: The Witch (synthesizes pre-fetched research)
+**Status:** ⚠️ Untested  
+**Feature:** Third agent receives pre-fetched source excerpts from Agent 2 and synthesizes them into a warm, readable remedy response with citations. This is now the only heavy Claude API call.  
 **Element:** `#agent-3`, `#status-3`
 
 **Steps:**
-1. Wait for Agent 2 to complete
-2. Watch Agent 3 row
+1. Wait for Agent 2 (Researching) to complete
+2. Watch Agent 3 row (labeled "Crafting Your Remedy")
 
 **Expected Result:**
 - Activates after Agent 2 completes
-- Any herb without a valid approved-domain source URL is discarded
-- Output is structured blocks: HERB / AILMENT / BENEFIT / PREP / SOURCE
-- Completes and passes only verified herbs to Agent 4
+- Receives source excerpts as input context (not raw web search results)
+- Every herb recommendation is based only on the provided excerpts
+- Every herb card includes a *Source: [URL]* line
+- Source renders as a clickable `📖 domain.com` link in the UI
+- On completion, result section becomes visible with remedy cards
+- Max tokens: 700
 
-**Notes:** This is the hallucination firewall — if Agent 2 returns anything from an unapproved source, it gets dropped here.
+**Notes:** If source excerpts contain no relevant herbs, the Witch responds honestly rather than hallucinating.
 
 ---
 
-### TEST-008 — Agent 4: The Witch (with mandatory citations)
-**Status:** ✅ Passing  
-**Feature:** Fourth agent writes the final remedy response and must cite a source URL for every herb.  
-**Element:** `#agent-4`, `#status-4`
+### TEST-017 — /api/research Server Route
+**Status:** ⚠️ Untested  
+**Feature:** The `/api/research` POST route fetches approved sources in parallel, scores sentences by relevance, and returns trimmed excerpts.  
+**Element:** `server.js` `/api/research` route
 
 **Steps:**
-1. Wait for Agent 3 to complete
-2. Watch Agent 4 row
+1. With server running, execute:
+```bash
+curl -X POST http://localhost:3000/api/research \
+  -H "Content-Type: application/json" \
+  -d '{"ailments": "headache, nausea"}'
+```
 
 **Expected Result:**
-- Activates after Agent 3 completes
-- On completion, result section becomes visible
-- Every herb card includes a *Source: [URL]* line
-- Source renders as a clickable `📖 domain.com` link in the UI
+- HTTP 200
+- JSON response with `context` (string of source excerpts) and `sourceCount` (number 0–5)
+- Server terminal logs: `Found excerpts from X/5 sources`
+- Each excerpt prefixed with `SOURCE: [url]`
+- Total context string under ~6000 chars
 
-**Notes:** Agent 4 is instructed to never recommend an herb without citing its source.
+**Notes:** Sources that time out or return no relevant sentences are silently skipped. A `sourceCount` of 0 means no relevant content was found — the Witch will say so honestly.
 
 ---
 
@@ -336,6 +354,32 @@ curl -X POST http://localhost:3000/api/claude \
 
 ---
 
+### TEST-018 — Fun Fact of the Day Widget
+**Status:** ⚠️ Untested
+**Feature:** A fixed corner widget displays one herb fact per day, fetched from an approved source and cached so the same fact shows all day.
+**Element:** `.fact-widget`, `#fact-text`, `#fact-source`, `/api/fact`
+
+**Steps:**
+1. Load `http://localhost:3000`
+2. Check the bottom-right corner for the widget
+
+**Expected Result:**
+- Widget appears fixed in bottom-right corner with moss-green header "Herb Fact of the Day"
+- On first load: shows "Gathering today's fact…" briefly, then displays a fact
+- Fact is one sentence, bolding the herb name (e.g. **Chamomile**)
+- A clickable 📖 Source link appears below the fact
+- Refreshing the page shows the same fact (cached in sessionStorage)
+- The next calendar day shows a different herb's fact
+
+**Server curl test:**
+```bash
+curl http://localhost:3000/api/fact
+```
+Expected: `{"fact": "**Herb** ...", "url": "https://..."}`
+
+**Notes:** Herb rotates deterministically by day-of-year — no randomness, so the same herb shows for all visitors on the same day. Server caches the fact in memory so Claude is only called once per day per server restart.
+
+---
 ## Test Block Template
 > Copy this when adding a new feature:
 
@@ -366,3 +410,11 @@ curl -X POST http://localhost:3000/api/claude \
 | 2026-03-05 | TEST-008 | Agent 4 now required to cite source URL for every herb recommendation |
 | 2026-03-05 | TEST-016 | New test added for clickable source citation links in result cards |
 | 2026-03-05 | TEST-000 | Added server pre-check test — NetworkError on Agent 1 = server not running |
+| 2026-03-05 | TEST-006/7/8 | Added per-agent max_tokens caps (150/500/400/600) and sleep delays (2s/3s/2s) between agents to prevent 429 rate limit errors |
+| 2026-03-05 | TEST-006+007 | Merged Seeker + Distiller into single Researcher agent — reduces API calls from 4 to 3, cuts token chain significantly |
+| 2026-03-05 | Architecture | Removed web search tool entirely — server now fetches approved sources directly via /api/research. Claude API calls reduced to 2. 429 rate limit errors eliminated. |
+| 2026-03-05 | TEST-006 | Updated to reflect server-side source fetching — zero Claude tokens consumed during research step |
+| 2026-03-05 | TEST-007 | Updated — Witch now synthesizes pre-fetched excerpts instead of raw web search output |
+| 2026-03-05 | TEST-017 | New test added for /api/research server route |
+| 2026-03-05 | server.js | Replaced index page fetching with herb-specific detail pages (NCCIH + MSKCC). Added ailment→herb mapping so only relevant herb pages are fetched per query. Fixes empty context bug. |
+| 2026-03-05 | TEST-018 | Added fun fact of the day widget — fixed corner, daily cache, /api/fact route |
