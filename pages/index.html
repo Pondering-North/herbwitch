@@ -485,6 +485,21 @@
     border-bottom: 1px dashed var(--moss-light);
   }
   .fact-source a:hover { color: var(--amber); border-color: var(--amber); }
+  .fact-close {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--cream);
+    opacity: 0.6;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    transition: opacity 0.2s;
+  }
+  .fact-close:hover { opacity: 1; }
+  .fact-widget.hidden { display: none; }
+
   .fact-loading {
     font-family: 'Lato', sans-serif;
     font-size: 0.8rem;
@@ -820,7 +835,24 @@ async function loadDailyFact() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', loadDailyFact);
+document.addEventListener('DOMContentLoaded', () => {
+  const widget = document.getElementById('fact-widget');
+  const closeBtn = document.getElementById('fact-close');
+  const dismissedOn = localStorage.getItem('herbwitch_fact_dismissed');
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Show widget unless dismissed today
+  if (dismissedOn === today) {
+    widget.classList.add('hidden');
+  } else {
+    loadDailyFact();
+  }
+
+  closeBtn.addEventListener('click', () => {
+    widget.classList.add('hidden');
+    localStorage.setItem('herbwitch_fact_dismissed', today);
+  });
+});
 
 // Allow Enter to not submit (it's a textarea)
 document.getElementById("ailment-input").addEventListener("keydown", e => {
@@ -832,6 +864,7 @@ document.getElementById("ailment-input").addEventListener("keydown", e => {
   <div class="fact-header">
     <span class="fact-header-dot"></span>
     Herb Fact of the Day
+    <button class="fact-close" id="fact-close" title="Dismiss">✕</button>
   </div>
   <div class="fact-body">
     <span class="fact-text fact-loading" id="fact-text">Gathering today's fact…</span>

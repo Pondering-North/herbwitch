@@ -245,6 +245,49 @@ const AILMENT_HERB_MAP = {
   // Urinary
   "urinary":          ["nettle", "saw palmetto", "cranberry", "dandelion"],
   "bladder":          ["nettle", "dandelion", "saw palmetto"],
+
+  // Dental & oral
+  "toothache":        ["clove", "peppermint", "chamomile", "willow bark", "echinacea"],
+  "tooth":            ["clove", "peppermint", "chamomile", "willow bark"],
+  "gum":              ["chamomile", "echinacea", "peppermint", "clove"],
+  "mouth":            ["chamomile", "peppermint", "licorice root", "echinacea"],
+
+  // Immune (broader matching)
+  "immunity":         ["echinacea", "elderberry", "turmeric", "ginger", "ashwagandha", "garlic"],
+  "poor immunity":    ["echinacea", "elderberry", "ashwagandha", "garlic", "turmeric"],
+  "weak immune":      ["echinacea", "elderberry", "ashwagandha", "garlic", "ginger"],
+  "getting sick":     ["echinacea", "elderberry", "ginger", "garlic", "mullein"],
+  "sick":             ["echinacea", "elderberry", "ginger", "peppermint", "garlic"],
+
+  // Women's health (broader matching)
+  "period":           ["chamomile", "ginger", "dong quai", "valerian", "lemon balm"],
+  "period cramps":    ["chamomile", "ginger", "valerian", "california poppy", "lemon balm"],
+  "menstrual cramps": ["chamomile", "ginger", "valerian", "california poppy", "dong quai"],
+  "period pain":      ["chamomile", "ginger", "valerian", "willow bark", "california poppy"],
+
+  // Musculoskeletal
+  "shoulder":         ["turmeric", "ginger", "willow bark", "peppermint", "california poppy"],
+  "shoulder pain":    ["turmeric", "ginger", "willow bark", "peppermint", "valerian"],
+  "sore muscles":     ["peppermint", "ginger", "turmeric", "chamomile", "california poppy"],
+  "sore":             ["willow bark", "turmeric", "ginger", "peppermint", "chamomile"],
+  "stiff":            ["ginger", "turmeric", "willow bark", "peppermint", "chamomile"],
+  "neck":             ["valerian", "peppermint", "chamomile", "willow bark", "california poppy"],
+  "back pain":        ["willow bark", "turmeric", "ginger", "valerian", "california poppy"],
+  "back":             ["willow bark", "turmeric", "ginger", "valerian", "chamomile"],
+
+  // Ear
+  "earache":          ["echinacea", "elderberry", "garlic", "mullein", "chamomile"],
+  "ear ache":         ["echinacea", "elderberry", "garlic", "mullein", "chamomile"],
+  "ear pain":         ["echinacea", "garlic", "mullein", "chamomile", "elderberry"],
+  "ear infection":    ["echinacea", "garlic", "elderberry", "mullein", "chamomile"],
+  "ear":              ["echinacea", "garlic", "mullein", "chamomile", "elderberry"],
+
+  // Eye
+  "eye ache":         ["chamomile", "eyebright", "green tea", "nettle", "echinacea"],
+  "eye pain":         ["chamomile", "green tea", "nettle", "echinacea"],
+  "eye":              ["chamomile", "green tea", "nettle", "echinacea"],
+  "eyestrain":        ["chamomile", "green tea", "lavender", "nettle"],
+  "dry eyes":         ["chamomile", "green tea", "nettle", "flaxseed"],
 };
 
 // ── Helper: strip HTML ────────────────────────────────────────
@@ -325,8 +368,15 @@ app.post("/api/research", async (req, res) => {
   const relevantHerbs = new Set();
 
   for (const ailment of ailmentList) {
+    const ailmentClean = ailment.trim();
     for (const [key, herbs] of Object.entries(AILMENT_HERB_MAP)) {
-      if (ailment.includes(key) || key.includes(ailment)) {
+      // Match if: ailment contains key, key contains ailment,
+      // or any individual word in the ailment matches any word in the key
+      const ailmentWords = ailmentClean.split(/\s+/);
+      const keyWords = key.split(/\s+/);
+      const wordOverlap = ailmentWords.some(w => w.length > 3 && keyWords.some(k => k.includes(w) || w.includes(k)));
+
+      if (ailmentClean.includes(key) || key.includes(ailmentClean) || wordOverlap) {
         herbs.forEach(h => relevantHerbs.add(h));
       }
     }
@@ -334,6 +384,7 @@ app.post("/api/research", async (req, res) => {
 
   // If no mapping found, use a default set of common herbs
   if (relevantHerbs.size === 0) {
+    console.log("   No mapping found — using default herbs");
     ["chamomile", "ginger", "peppermint", "lavender", "lemon balm"].forEach(h => relevantHerbs.add(h));
   }
 
