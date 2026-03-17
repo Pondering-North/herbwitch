@@ -420,6 +420,8 @@ const AILMENT_HERB_MAP = {
   "adrenal fatigue":       ["ashwagandha", "rhodiola", "holy basil", "licorice root", "ginseng"],
   "stamina":               ["ginseng", "rhodiola", "ashwagandha", "green tea", "holy basil"],
   "weakness":              ["ginseng", "ashwagandha", "rhodiola", "nettle", "licorice root"],
+  "asian ginseng":         ["ginseng", "rhodiola", "ashwagandha", "green tea", "holy basil"],
+  "panax ginseng":         ["ginseng", "rhodiola", "ashwagandha", "green tea", "holy basil"],
 
   // ── Skin ───────────────────────────────────────────────────
   "skin":                  ["chamomile", "lavender", "nettle", "green tea", "turmeric"],
@@ -597,8 +599,18 @@ app.post("/api/research", async (req, res) => {
   const ailmentList = ailments.toLowerCase().split(/,\s*/);
   const relevantHerbs = new Set();
 
+  // Build a set of all known herb names from APPROVED_SOURCES for direct lookup
+  const knownHerbs = new Set(APPROVED_SOURCES.map(s => s.herb));
+
   for (const ailment of ailmentList) {
     const ailmentClean = ailment.trim();
+
+    // Direct herb-name match — user typed a herb name itself (e.g. "lavender", "ginger")
+    if (knownHerbs.has(ailmentClean)) {
+      relevantHerbs.add(ailmentClean);
+      continue; // skip ailment map lookup for this token
+    }
+
     for (const [key, herbs] of Object.entries(AILMENT_HERB_MAP)) {
       // Match if: ailment contains key, key contains ailment,
       // or any individual word in the ailment matches any word in the key

@@ -770,17 +770,18 @@ async function runPipeline() {
     // === AGENT 3: The Witch — synthesizes pre-fetched research into a response ===
     setAgent(3, 'active');
     const remedy = await callClaude(
-      `You are a practical herbalist. You are given excerpts from trusted herbal medicine sources. Synthesize them into a clear, direct remedy response.
+      `You are a knowledgeable, practical herbalist. You are given excerpts from trusted herbal medicine sources. Use them as your primary reference.
 
 Rules:
-- Recommend ONLY herbs mentioned in the provided source excerpts
-- For each herb: bold the name (**Herb Name**), state plainly what it helps with, give specific preparation instructions (quantity, steep time, water temperature), and say when to drink it
-- After each herb, add: *Source: [the SOURCE url from the excerpt]*
+- Prioritise information from the provided source excerpts
+- If the excerpts are sparse or don't cover all relevant herbs, draw on your own herbalism knowledge to give a complete, useful answer — but only mention herbs that genuinely have traditional or evidence-based use for the complaint
+- For each herb: bold the name (**Herb Name**), state plainly what it helps with, give specific preparation instructions (quantity, steep time, water temperature), and say when to take it
+- After each herb, add a source line: if an excerpt URL is available for that herb, use *Source: [url]*; otherwise omit the source line rather than guessing a URL
 - Use ## headers to separate sections if the person has multiple ailments
 - End with one plain sentence: consult a doctor if symptoms persist or worsen
-- Keep total response under 400 words
+- Keep total response under 450 words
 - No poetic language, no flowery descriptions, no mystical tone — just clear, useful information
-- If the excerpts contain no relevant herbs, say so plainly`,
+- Never say "the excerpts do not contain information" — if the excerpts are thin, simply answer from knowledge`,
       `The person's complaint: "${ailment}"\n\nResearch excerpts from trusted sources:\n\n${context}`,
       700
     );
