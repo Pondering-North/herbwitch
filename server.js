@@ -160,6 +160,58 @@ const APPROVED_SOURCES = [
   { url: "https://medlineplus.gov/druginfo/natural/974.html",    name: "MedlinePlus", herb: "hops" },
   { url: "https://medlineplus.gov/druginfo/natural/976.html",    name: "MedlinePlus", herb: "slippery elm" },
 
+  // ── NCCIH — additional herbs ───────────────────────────────
+  { url: "https://www.nccih.nih.gov/health/dandelion",            name: "NCCIH", herb: "dandelion" },
+  { url: "https://www.nccih.nih.gov/health/fennel",               name: "NCCIH", herb: "fennel" },
+  { url: "https://www.nccih.nih.gov/health/sage",                 name: "NCCIH", herb: "sage" },
+  { url: "https://www.nccih.nih.gov/health/thyme",                name: "NCCIH", herb: "thyme" },
+  { url: "https://www.nccih.nih.gov/health/cinnamon",             name: "NCCIH", herb: "cinnamon" },
+  { url: "https://www.nccih.nih.gov/health/horsetail",            name: "NCCIH", herb: "horsetail" },
+  { url: "https://www.nccih.nih.gov/health/hibiscus",             name: "NCCIH", herb: "hibiscus" },
+  { url: "https://www.nccih.nih.gov/health/flaxseed-and-flaxseed-oil", name: "NCCIH", herb: "flaxseed" },
+
+  // ── MSKCC — additional herbs ───────────────────────────────
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/dandelion",        name: "MSKCC", herb: "dandelion" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/fennel",           name: "MSKCC", herb: "fennel" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/sage",             name: "MSKCC", herb: "sage" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/thyme",            name: "MSKCC", herb: "thyme" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/cinnamon",         name: "MSKCC", herb: "cinnamon" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/hibiscus",         name: "MSKCC", herb: "hibiscus" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/flaxseed",         name: "MSKCC", herb: "flaxseed" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/horse-chestnut",   name: "MSKCC", herb: "horse chestnut" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/marshmallow",      name: "MSKCC", herb: "marshmallow root" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/calendula",        name: "MSKCC", herb: "calendula" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/clove",            name: "MSKCC", herb: "clove" },
+  { url: "https://www.mskcc.org/cancer-care/integrative-medicine/herbs/pumpkin-seed",     name: "MSKCC", herb: "pumpkin seed" },
+
+  // ── Examine.com — additional herbs ────────────────────────
+  { url: "https://examine.com/supplements/dandelion/",            name: "Examine", herb: "dandelion" },
+  { url: "https://examine.com/supplements/fennel/",               name: "Examine", herb: "fennel" },
+  { url: "https://examine.com/supplements/sage/",                 name: "Examine", herb: "sage" },
+  { url: "https://examine.com/supplements/thyme/",                name: "Examine", herb: "thyme" },
+  { url: "https://examine.com/supplements/cinnamon/",             name: "Examine", herb: "cinnamon" },
+  { url: "https://examine.com/supplements/berberine/",            name: "Examine", herb: "berberine" },
+  { url: "https://examine.com/supplements/hibiscus/",             name: "Examine", herb: "hibiscus" },
+  { url: "https://examine.com/supplements/flaxseed/",             name: "Examine", herb: "flaxseed" },
+  { url: "https://examine.com/supplements/horse-chestnut/",       name: "Examine", herb: "horse chestnut" },
+  { url: "https://examine.com/supplements/marshmallow-root/",     name: "Examine", herb: "marshmallow root" },
+  { url: "https://examine.com/supplements/calendula/",            name: "Examine", herb: "calendula" },
+  { url: "https://examine.com/supplements/clove/",                name: "Examine", herb: "clove" },
+  { url: "https://examine.com/supplements/pumpkin-seed-extract/", name: "Examine", herb: "pumpkin seed" },
+
+  // ── MedlinePlus — additional herbs ────────────────────────
+  { url: "https://medlineplus.gov/druginfo/natural/706.html",     name: "MedlinePlus", herb: "dandelion" },
+  { url: "https://medlineplus.gov/druginfo/natural/311.html",     name: "MedlinePlus", herb: "fennel" },
+  { url: "https://medlineplus.gov/druginfo/natural/504.html",     name: "MedlinePlus", herb: "sage" },
+  { url: "https://medlineplus.gov/druginfo/natural/823.html",     name: "MedlinePlus", herb: "thyme" },
+  { url: "https://medlineplus.gov/druginfo/natural/901.html",     name: "MedlinePlus", herb: "cinnamon" },
+  { url: "https://medlineplus.gov/druginfo/natural/684.html",     name: "MedlinePlus", herb: "berberine" },
+  { url: "https://medlineplus.gov/druginfo/natural/211.html",     name: "MedlinePlus", herb: "clove" },
+  { url: "https://medlineplus.gov/druginfo/natural/281.html",     name: "MedlinePlus", herb: "horse chestnut" },
+  { url: "https://medlineplus.gov/druginfo/natural/235.html",     name: "MedlinePlus", herb: "marshmallow root" },
+  { url: "https://medlineplus.gov/druginfo/natural/437.html",     name: "MedlinePlus", herb: "horsetail" },
+  { url: "https://medlineplus.gov/druginfo/natural/211.html",     name: "MedlinePlus", herb: "calendula" },
+
   // ── United Plant Savers ────────────────────────────────────
   { url: "https://www.unitedplantsavers.org/california-poppy-eschscholzia-californica/",  name: "UnitedPlantSavers", herb: "california poppy" },
   { url: "https://www.unitedplantsavers.org/valerian-valeriana-officinalis/",             name: "UnitedPlantSavers", herb: "valerian" },
@@ -505,15 +557,19 @@ async function fetchHerbPage(source) {
       "used for", "used to", "may help", "has been used", "traditional",
       "shown to", "evidence", "benefit", "effective", "treat", "relief",
       "reduce", "relieve", "help with", "tea", "steep", "brew", "infus",
-      "dry", "fresh", "dose", "preparation", "side effect", "caution", "safe"
+      "dry", "fresh", "dose", "preparation", "side effect", "caution", "safe",
+      "study", "research", "clinical", "trial", "found", "suggest", "support",
+      "anti-inflammatory", "antioxidant", "antimicrobial", "adaptogen",
+      "calming", "soothing", "healing", "pain", "sleep", "anxiety", "stress",
+      "immune", "digest", "nausea", "headache", "skin", "circulation"
     ];
 
     const useful = sentences
       .filter(s => usefulKeywords.some(k => s.toLowerCase().includes(k)))
-      .slice(0, 6)
+      .slice(0, 10)
       .join(" ");
 
-    if (useful.length < 80) return null;
+    if (useful.length < 50) return null;
 
     const excerpt = useful.length > 1500 ? useful.slice(0, 1500) + "..." : useful;
 
@@ -565,8 +621,8 @@ app.post("/api/research", async (req, res) => {
   console.log(`   Relevant herbs: ${[...relevantHerbs].join(", ")}`);
 
   // Fetch from ALL approved sources for the top relevant herbs
-  // Cap at 3 herbs × 5 sources = up to 15 fetches in parallel
-  const topHerbs = [...relevantHerbs].slice(0, 3);
+  // Cap at 5 herbs × 5 sources = up to 25 fetches in parallel
+  const topHerbs = [...relevantHerbs].slice(0, 5);
   const sourcesToFetch = APPROVED_SOURCES.filter(s => topHerbs.includes(s.herb));
   const sourceNames = [...new Set(sourcesToFetch.map(s => s.name))].join(", ");
 
