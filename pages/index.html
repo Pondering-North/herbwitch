@@ -996,13 +996,23 @@ async function checkContraindications() {
       try {
         panel.innerHTML = `<div class="contra-title">⚠️ &nbsp; Herb-Drug Contraindications</div><p class="contra-none">Interpreting records…</p>`;
 
+        const herbList = withData.map(r => r.herb).join(", ");
         const summary = await callClaude(
-          `You are interpreting herb-drug contraindication data from Michael Moore's clinical reference (SWSBM). The text is organised by drug/condition category. For each herb:
-- State which drug classes or specific medications it may interact with
-- Briefly describe the nature of each interaction (e.g. additive sedation, reduced drug clearance, blood-thinning)
-- Flag any medical conditions where caution is needed
-Use plain English. Bold each herb name with **name**. Use a dash-prefixed bullet for each interaction. Be concise. Total under 350 words. Output only the formatted list.`,
-          `Herb contraindication data from SWSBM:\n\n${rawContext}`,
+          `You are interpreting herb-drug contraindication data from Michael Moore's clinical reference (SWSBM). The text is organised by drug/condition category.
+
+IMPORTANT: Report ONLY on these specific herbs: ${herbList}.
+If the raw text contains entries for other plant species (e.g. a different Mentha species, or any other Latin name not matching the herbs listed above), ignore them completely — do not mention them.
+
+For each herb in the list that has recorded contraindications:
+- Bold the common herb name with **name**
+- Use a dash bullet for each drug class or medication interaction
+- Briefly state the nature of the interaction (e.g. additive sedation, reduced drug clearance)
+- Note any medical conditions that warrant caution
+
+For herbs with no recorded contraindications: bold the name and write "No specific contraindications listed."
+
+Plain English only. No preamble. Total under 350 words.`,
+          `Herbs to report on: ${herbList}\n\nRaw SWSBM data:\n\n${rawContext}`,
           500
         );
 

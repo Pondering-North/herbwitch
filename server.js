@@ -367,12 +367,36 @@ async function fetchMatMedEntry(herbName) {
   };
 }
 
+// Trim a raw text slice so it stops before the next herb entry.
+// Herb entries in HerbMedContra1 start on their own line with 3+ uppercase
+// letters (e.g. "VALERIANA", "PANAX", "MENTHA ARVENSIS").  Section headers
+// made of slashes or angle-brackets are NOT herb entries.
+function trimToHerbEntryEnd(slice) {
+  const lines = slice.split("\n");
+  const out   = [];
+  let   pastFirstEntry = false;
+
+  for (const line of lines) {
+    const t = line.trim();
+    // Section headers: rows of / or < — keep them (they name the drug class)
+    if (/^[/<]{6,}/.test(t)) { out.push(line); continue; }
+    // A new herb entry: starts with 3+ uppercase letters, optional spaces, then
+    // another uppercase letter or "(" — but NOT pure punctuation or blank
+    const isHerbEntry = /^[A-Z]{3,}[\sA-Z]*(\(|[A-Z])/.test(t) && t.length > 3;
+    if (isHerbEntry && pastFirstEntry) break;   // stop before the next herb
+    if (isHerbEntry) pastFirstEntry = true;
+    out.push(line);
+  }
+
+  return out.join("\n").trim();
+}
+
 // Fetch contraindication entries for an herb using its Latin genus name.
-// HerbMedContra1.txt is organised by drug/condition CATEGORY, with herb
-// entries formatted as "LATIN_GENUS  (common name)" on their own lines.
+// HerbMedContra1.txt is organised by drug/condition CATEGORY with herb
+// entries headed as "LATIN_GENUS (common name)" on their own lines.
 // An herb can appear under multiple category headings, so we collect all
-// occurrences and include ~400 chars of context per hit (enough to see
-// which drug class the entry falls under).
+// occurrences; each chunk is trimmed to stop before the next herb entry
+// so neighbouring species don't bleed through.
 async function fetchContraEntry(herbName) {
   const text = await loadSwsbmFile(SWSBM_CONTRA_URL, "contra");
   if (!text) return null;
@@ -382,6 +406,11 @@ async function fetchContraEntry(herbName) {
   if (!latin) return null; // herb not in our map → skip rather than false-match
 
   // Walk through all occurrences so we capture every drug-class section.
+  // Use a word-boundary approach: the marker must be followed immediately by
+  // the latin name and then a space, "(", or end-of-line — so "MENTHA " matches
+  // "MENTHA PIPERITA" but NOT "MENTHA ARVENSIS" when latin = "MENTHA PIPERITA".
+  // Since our map stores genus-only (e.g. "MENTHA"), we match genus + word-break
+  // so we capture all species but trim each chunk before the next herb entry.
   const excerpts = [];
   const marker   = "\n" + latin;   // entries always start on their own line
   let   pos      = 0;
@@ -390,20 +419,17 @@ async function fetchContraEntry(herbName) {
     const idx = text.indexOf(marker, pos);
     if (idx === -1) break;
 
-    // Back-scan for the nearest section header (slashes or angle-brackets line)
-    // so the reader knows which drug class this warning falls under.
-    const sectionStart = Math.max(0, idx - 400);
-    const linesBefore  = text.slice(sectionStart, idx);
-    // Find the last section-header line (rows of / or <) in that window
-    const headerMatch  = linesBefore.match(/[/<]{10,}[\s\S]*$/);
-    const contextStart = headerMatch
-      ? idx - headerMatch[0].length
-      : idx + 1;
+    // Back-scan for the nearest section/category header (rows of / or <)
+    const windowStart = Math.max(0, idx - 400);
+    const before      = text.slice(windowStart, idx);
+    const hdrMatch    = before.match(/[/<]{6,}[\s\S]*$/);
+    const chunkStart  = hdrMatch ? idx - hdrMatch[0].length : idx + 1;
 
-    const end    = Math.min(text.length, idx + 500);
-    const chunk  = text.slice(Math.max(0, contextStart), end).trim();
+    // Forward-scan up to 600 chars then trim at the next herb entry boundary
+    const raw   = text.slice(Math.max(0, chunkStart), Math.min(text.length, idx + 600));
+    const chunk = trimToHerbEntryEnd(raw);
+
     if (chunk.length > 10) excerpts.push(chunk);
-
     pos = idx + marker.length;
   }
 
