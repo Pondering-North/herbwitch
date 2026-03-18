@@ -500,6 +500,94 @@
   .fact-close:hover { opacity: 1; }
   .fact-widget.hidden { display: none; }
 
+  /* === CONTRAINDICATIONS PANEL === */
+  .contra-btn {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: var(--amber);
+    border: 1px solid rgba(200,133,58,0.4);
+    border-radius: 2px;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .contra-btn:hover:not(:disabled) {
+    background: rgba(200,133,58,0.08);
+    border-color: var(--amber);
+  }
+  .contra-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .contra-panel {
+    margin-top: 18px;
+    border-top: 1px solid rgba(200,133,58,0.25);
+    padding-top: 16px;
+  }
+  .contra-panel.hidden { display: none; }
+  .contra-title {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.72rem;
+    color: var(--amber);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .contra-herb {
+    margin-bottom: 18px;
+  }
+  .contra-herb-name {
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.82rem;
+    color: var(--moss);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .contra-text {
+    display: block;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--ink-light);
+    font-family: 'Lato', sans-serif;
+    font-weight: 300;
+    white-space: pre-wrap;
+    background: rgba(245,234,214,0.5);
+    border-left: 2px solid rgba(200,133,58,0.3);
+    padding: 10px 14px;
+    border-radius: 0 2px 2px 0;
+    margin-top: 4px;
+  }
+  .contra-none {
+    font-size: 0.85rem;
+    color: rgba(92,61,30,0.5);
+    font-style: italic;
+    font-family: 'Lato', sans-serif;
+    margin-bottom: 10px;
+  }
+  .contra-source {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.78rem;
+    font-family: 'Lato', sans-serif;
+    color: var(--moss);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--moss-light);
+  }
+  .contra-source:hover { color: var(--amber); border-color: var(--amber); }
+  .contra-note {
+    margin-top: 14px;
+    font-size: 0.78rem;
+    font-style: italic;
+    color: rgba(92,61,30,0.5);
+    font-family: 'Lato', sans-serif;
+    border-top: 1px solid rgba(200,133,58,0.15);
+    padding-top: 12px;
+  }
+
   .fact-loading {
     font-family: 'Lato', sans-serif;
     font-size: 0.8rem;
@@ -631,6 +719,9 @@
 const API_URL = "/api/claude";
 const MODEL = "claude-sonnet-4-20250514";
 
+// Tracks the herbs returned by the most recent research call
+let lastHerbsFound = [];
+
 function setAgent(n, state, statusText) {
   const agent = document.getElementById(`agent-${n}`);
   const status = document.getElementById(`status-${n}`);
@@ -736,6 +827,18 @@ function renderResult(markdown) {
   }
 
   html += `</div><div class="disclaimer">🌙 This is folk & traditional knowledge, not medical advice. Consult your physician or herbalist before use, especially if pregnant, nursing, or on medications.</div>`;
+
+  // Contraindications checker — only if we have herbs to check
+  if (lastHerbsFound && lastHerbsFound.length > 0) {
+    html += `
+      <div id="contra-section">
+        <button class="contra-btn" id="contra-btn" onclick="checkContraindications()">
+          ⚠️ &nbsp; Check Contraindications with Common Medications &nbsp; ⚠️
+        </button>
+        <div id="contra-panel" class="contra-panel hidden"></div>
+      </div>`;
+  }
+
   box.innerHTML = html;
 }
 
@@ -764,7 +867,8 @@ async function runPipeline() {
 
     // === AGENT 2: Researcher — server fetches approved sources, no Claude web search ===
     setAgent(2, 'active');
-    const { context, sourceCount } = await fetchResearch(interpreted);
+    const { context, sourceCount, herbsFound } = await fetchResearch(interpreted);
+    lastHerbsFound = herbsFound || [];
     setAgent(2, 'done');
 
     // === AGENT 3: The Witch — synthesizes pre-fetched research into a response ===
@@ -803,6 +907,75 @@ Rules:
   btn.disabled = false;
 }
 
+
+// === CONTRAINDICATIONS CHECKER ===
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function checkContraindications() {
+  if (!lastHerbsFound.length) return;
+
+  const btn   = document.getElementById("contra-btn");
+  const panel = document.getElementById("contra-panel");
+
+  btn.disabled = true;
+  btn.textContent = "⟳  Consulting the records…";
+  panel.classList.remove("hidden");
+  panel.innerHTML = `<p class="contra-none">Searching contraindication records…</p>`;
+
+  try {
+    const resp = await fetch("/api/contraindications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ herbs: lastHerbsFound })
+    });
+
+    if (!resp.ok) throw new Error(`Server returned HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    let html = `<div class="contra-title">⚠️ &nbsp; Herb-Drug Contraindications</div>`;
+
+    const withData    = data.results.filter(r => r.found);
+    const withoutData = data.results.filter(r => !r.found);
+
+    if (withData.length === 0) {
+      html += `<p class="contra-none">No specific contraindication records were found for these herbs in the SWSBM database. Absence of data does not mean interactions are absent — consult a pharmacist or qualified herbalist.</p>`;
+    } else {
+      for (const r of withData) {
+        // Trim to a readable length
+        const text = r.text && r.text.length > 900
+          ? r.text.slice(0, 900) + "…"
+          : (r.text || "");
+        const name = r.herb.charAt(0).toUpperCase() + r.herb.slice(1);
+        html += `<div class="contra-herb">
+          <span class="contra-herb-name">${name}</span>
+          <span class="contra-text">${escapeHtml(text)}</span>
+          ${r.source
+            ? `<a class="contra-source" href="${r.source}" target="_blank" rel="noopener">📖 SWSBM Source</a>`
+            : ""}
+        </div>`;
+      }
+    }
+
+    if (withoutData.length > 0) {
+      const names = withoutData.map(r => r.herb).join(", ");
+      html += `<p class="contra-none">No SWSBM records on file for: ${names}.</p>`;
+    }
+
+    html += `<p class="contra-note">⚕️ ${escapeHtml(data.note)}</p>`;
+    panel.innerHTML = html;
+
+  } catch (err) {
+    panel.innerHTML = `<p class="contra-none">Could not load contraindication data: ${escapeHtml(err.message)}</p>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = "⚠️ \u00A0 Check Contraindications with Common Medications \u00A0 ⚠️";
+}
 
 // === FUN FACT OF THE DAY ===
 async function loadDailyFact() {

@@ -566,12 +566,144 @@ section("Frontend Feature Flags (HTML introspection)");
     ["Claude model declared",   html.includes("claude")],
     ["swsbm.com in Agent3",     html.includes("swsbm.com")],
     ["scienceandartofherbalism.com in Agent3", html.includes("scienceandartofherbalism.com")],
+    ["Contraindications button", html.includes("contra-btn") || html.includes("checkContraindications")],
+    ["Contraindications panel",  html.includes("contra-panel") || html.includes("contra-section")],
+    ["lastHerbsFound variable",  html.includes("lastHerbsFound")],
   ];
 
   for (const [label, ok] of checks) {
     if (ok) pass(`FE-${label.replace(/[^a-zA-Z0-9]/g, "_")}`, label);
     else    fail(`FE-${label.replace(/[^a-zA-Z0-9]/g, "_")}`, label);
   }
+}
+
+// ── 14. /api/contraindications — Contraindications Checker ───────
+section("/api/contraindications — Contraindications Checker");
+
+{
+  // Missing body → 400
+  const r = await POST("/api/contraindications", {});
+  if (r.status === 400)
+    pass("CONTRA-001", "POST /api/contraindications with no herbs body → 400");
+  else
+    fail("CONTRA-001", "POST /api/contraindications with no herbs body → 400", `Got ${r.status}`);
+}
+
+{
+  // Empty array → 400
+  const r = await POST("/api/contraindications", { herbs: [] });
+  if (r.status === 400)
+    pass("CONTRA-002", "POST /api/contraindications with empty herbs array → 400");
+  else
+    fail("CONTRA-002", "POST /api/contraindications with empty herbs array → 400", `Got ${r.status}`);
+}
+
+{
+  // Single herb — returns results array
+  const r = await POST("/api/contraindications", { herbs: ["chamomile"] }, { timeout: 30_000 });
+  const data = r.ok ? await r.json() : null;
+  if (data && Array.isArray(data.results))
+    pass("CONTRA-003", "POST /api/contraindications returns a results array");
+  else
+    fail("CONTRA-003", "POST /api/contraindications returns a results array",
+         `status=${r.status}, data=${JSON.stringify(data)?.slice(0, 80)}`);
+}
+
+{
+  // checkedHerbs mirrors the input
+  const herbs = ["ginger", "valerian"];
+  const r = await POST("/api/contraindications", { herbs }, { timeout: 30_000 });
+  const data = r.ok ? await r.json() : null;
+  if (data && Array.isArray(data.checkedHerbs) && data.checkedHerbs.length === herbs.length)
+    pass("CONTRA-004", "Response checkedHerbs array mirrors the input herbs");
+  else
+    fail("CONTRA-004", "Response checkedHerbs array mirrors the input herbs",
+         `got: ${JSON.stringify(data?.checkedHerbs)}`);
+}
+
+{
+  // note / disclaimer field is present
+  const r = await POST("/api/contraindications", { herbs: ["chamomile"] }, { timeout: 30_000 });
+  const data = r.ok ? await r.json() : null;
+  if (data && typeof data.note === "string" && data.note.length > 10)
+    pass("CONTRA-005", "Response includes a note / disclaimer string");
+  else
+    fail("CONTRA-005", "Response includes a note / disclaimer string");
+}
+
+{
+  // Multiple herbs — result count equals herb count
+  const herbs = ["chamomile", "ginger", "valerian", "lavender", "peppermint"];
+  const r = await POST("/api/contraindications", { herbs }, { timeout: 45_000 });
+  const data = r.ok ? await r.json() : null;
+  if (data && data.results && data.results.length === herbs.length)
+    pass("CONTRA-006", `Returns one result entry per herb (${herbs.length} herbs → ${data.results.length} entries)`);
+  else
+    fail("CONTRA-006", "Returns one result entry per herb",
+         `expected ${herbs.length}, got ${data?.results?.length}`);
+}
+
+{
+  // Each result object has the required shape
+  const r = await POST("/api/contraindications", { herbs: ["chamomile"] }, { timeout: 30_000 });
+  const data = r.ok ? await r.json() : null;
+  const result = data?.results?.[0];
+  if (result && "herb" in result && "found" in result && "text" in result)
+    pass("CONTRA-007", "Each result entry has herb, found, and text fields");
+  else
+    fail("CONTRA-007", "Each result entry has herb, found, and text fields",
+         `got: ${JSON.stringify(result)?.slice(0, 120)}`);
+}
+
+{
+  // found field is boolean
+  const r = await POST("/api/contraindications", { herbs: ["chamomile"] }, { timeout: 30_000 });
+  const data = r.ok ? await r.json() : null;
+  const result = data?.results?.[0];
+  if (result && typeof result.found === "boolean")
+    pass("CONTRA-008", "result.found is a boolean");
+  else
+    fail("CONTRA-008", "result.found is a boolean",
+         `typeof found: ${typeof result?.found}`);
+}
+
+{
+  // Content-Type is JSON
+  const r = await POST("/api/contraindications", { herbs: ["chamomile"] }, { timeout: 30_000 });
+  const ct = r.headers.get("content-type") || "";
+  if (ct.includes("application/json"))
+    pass("CONTRA-009", "POST /api/contraindications Content-Type is application/json");
+  else
+    fail("CONTRA-009", "POST /api/contraindications Content-Type is application/json", `Got: ${ct}`);
+}
+
+{
+  // HTML contains the new UI elements
+  const html = await (await GET("/")).text();
+  if (html.includes("checkContraindications"))
+    pass("CONTRA-010", "index.html contains checkContraindications() function");
+  else
+    fail("CONTRA-010", "index.html contains checkContraindications() function");
+}
+
+{
+  // HTML contains the contra-btn class / element
+  const html = await (await GET("/")).text();
+  if (html.includes("contra-btn"))
+    pass("CONTRA-011", "index.html contains .contra-btn CSS class");
+  else
+    fail("CONTRA-011", "index.html contains .contra-btn CSS class");
+}
+
+{
+  // Source map check: /api/contraindications route exists in server.js
+  const serverSrc = readFileSync(
+    path.join(__dirname, "..", "server.js"), "utf8"
+  );
+  if (serverSrc.includes('"/api/contraindications"'))
+    pass("CONTRA-012", "server.js defines the /api/contraindications route");
+  else
+    fail("CONTRA-012", "server.js defines the /api/contraindications route");
 }
 
 // ════════════════════════════════════════════════════════════════

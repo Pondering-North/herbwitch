@@ -955,6 +955,40 @@ app.get("/api/fact", async (req, res) => {
   }
 });
 
+// ── Route: contraindications checker ─────────────────────────
+// Accepts { herbs: ["chamomile", "ginger", ...] }, fetches each
+// herb's entry from the cached SWSBM HerbMedContra1.txt file, and
+// returns structured contraindication data.
+app.post("/api/contraindications", async (req, res) => {
+  const { herbs } = req.body;
+  if (!herbs || !Array.isArray(herbs) || herbs.length === 0) {
+    return res.status(400).json({ error: "herbs array is required" });
+  }
+
+  console.log(`\n⚠️  Checking contraindications for: ${herbs.join(", ")}`);
+
+  const results = await Promise.all(
+    herbs.map(async (herb) => {
+      const entry = await fetchContraEntry(herb);
+      return {
+        herb,
+        found: !!entry,
+        text: entry ? entry.excerpt : null,
+        source: entry ? entry.url : null
+      };
+    })
+  );
+
+  const found = results.filter(r => r.found).map(r => r.herb);
+  console.log(`   Contraindication data found for: ${found.join(", ") || "none"}`);
+
+  res.json({
+    results,
+    checkedHerbs: herbs,
+    note: "Data sourced from Michael Moore's Herb/Drug Contraindications (SWSBM). Always consult a healthcare provider or pharmacist before combining herbs with medications."
+  });
+});
+
 // ── Route: claude proxy ───────────────────────────────────────
 app.post("/api/claude", async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
