@@ -587,6 +587,32 @@
     border-top: 1px solid rgba(200,133,58,0.15);
     padding-top: 12px;
   }
+  .contra-panel ul {
+    margin: 4px 0 10px 16px;
+    padding: 0;
+  }
+  .contra-panel li {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 300;
+    line-height: 1.6;
+    color: var(--ink-light);
+    margin-bottom: 3px;
+  }
+  .contra-panel strong.contra-herb-name {
+    display: block;
+    margin: 14px 0 4px;
+    font-family: 'Cinzel Decorative', serif;
+    font-size: 0.82rem;
+    color: var(--moss);
+    font-weight: normal;
+  }
+  .contra-panel span {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.88rem;
+    color: var(--ink-light);
+    line-height: 1.6;
+  }
 
   .fact-loading {
     font-family: 'Lato', sans-serif;
@@ -916,6 +942,22 @@ function escapeHtml(s) {
     .replace(/>/g, "&gt;");
 }
 
+// Minimal markdown → HTML for the Claude summary output
+function renderContraMarkdown(md) {
+  return md
+    .split("\n")
+    .map(line => {
+      if (/^\*\*(.+?)\*\*/.test(line))
+        return `<strong class="contra-herb-name">${line.replace(/\*\*(.*?)\*\*/g, "$1")}</strong>`;
+      if (/^[-•]\s/.test(line))
+        return `<li>${line.replace(/^[-•]\s/, "").replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}</li>`;
+      if (line.trim() === "") return "<br>";
+      return `<span>${line.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")}</span>`;
+    })
+    .join("\n")
+    .replace(/(<li>[\s\S]*?<\/li>(\n<li>[\s\S]*?<\/li>)*)/g, "<ul>$1</ul>");
+}
+
 async function checkContraindications() {
   if (!lastHerbsFound.length) return;
 
@@ -925,45 +967,66 @@ async function checkContraindications() {
   btn.disabled = true;
   btn.textContent = "⟳  Consulting the records…";
   panel.classList.remove("hidden");
-  panel.innerHTML = `<p class="contra-none">Searching contraindication records…</p>`;
+  panel.innerHTML = `<p class="contra-none">Searching Michael Moore's contraindications reference…</p>`;
 
   try {
+    // Step 1: fetch raw SWSBM data from the server
     const resp = await fetch("/api/contraindications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ herbs: lastHerbsFound })
     });
-
     if (!resp.ok) throw new Error(`Server returned HTTP ${resp.status}`);
     const data = await resp.json();
-
-    let html = `<div class="contra-title">⚠️ &nbsp; Herb-Drug Contraindications</div>`;
 
     const withData    = data.results.filter(r => r.found);
     const withoutData = data.results.filter(r => !r.found);
 
+    let html = `<div class="contra-title">⚠️ &nbsp; Herb-Drug Contraindications</div>`;
+
     if (withData.length === 0) {
-      html += `<p class="contra-none">No specific contraindication records were found for these herbs in the SWSBM database. Absence of data does not mean interactions are absent — consult a pharmacist or qualified herbalist.</p>`;
+      // No records = genuinely safe herbs with no known drug interactions in Moore's reference
+      html += `<p class="contra-none">No drug-interaction records found for these herbs in Michael Moore's reference. For common culinary and gentle herbs (chamomile, lavender, ginger, etc.) this is normal and generally reassuring. Still check with your pharmacist if you are on prescription medications.</p>`;
     } else {
-      for (const r of withData) {
-        // Trim to a readable length
-        const text = r.text && r.text.length > 900
-          ? r.text.slice(0, 900) + "…"
-          : (r.text || "");
-        const name = r.herb.charAt(0).toUpperCase() + r.herb.slice(1);
-        html += `<div class="contra-herb">
-          <span class="contra-herb-name">${name}</span>
-          <span class="contra-text">${escapeHtml(text)}</span>
-          ${r.source
-            ? `<a class="contra-source" href="${r.source}" target="_blank" rel="noopener">📖 SWSBM Source</a>`
-            : ""}
-        </div>`;
+      // Step 2: try Claude to turn the dense SWSBM text into plain English
+      const rawContext = withData
+        .map(r => `HERB: ${r.herb.toUpperCase()}\n${r.text}`)
+        .join("\n\n---\n\n");
+
+      try {
+        panel.innerHTML = `<div class="contra-title">⚠️ &nbsp; Herb-Drug Contraindications</div><p class="contra-none">Interpreting records…</p>`;
+
+        const summary = await callClaude(
+          `You are interpreting herb-drug contraindication data from Michael Moore's clinical reference (SWSBM). The text is organised by drug/condition category. For each herb:
+- State which drug classes or specific medications it may interact with
+- Briefly describe the nature of each interaction (e.g. additive sedation, reduced drug clearance, blood-thinning)
+- Flag any medical conditions where caution is needed
+Use plain English. Bold each herb name with **name**. Use a dash-prefixed bullet for each interaction. Be concise. Total under 350 words. Output only the formatted list.`,
+          `Herb contraindication data from SWSBM:\n\n${rawContext}`,
+          500
+        );
+
+        html += renderContraMarkdown(summary);
+        for (const r of withData) {
+          html += `<a class="contra-source" href="${r.source}" target="_blank" rel="noopener" style="display:block;margin-top:4px">📖 SWSBM source for ${r.herb}</a>`;
+        }
+
+      } catch (_claudeErr) {
+        // No API key or Claude unavailable — fall back to formatted raw text
+        for (const r of withData) {
+          const text = r.text.length > 800 ? r.text.slice(0, 800) + "…" : r.text;
+          html += `<div class="contra-herb">
+            <span class="contra-herb-name">${r.herb.charAt(0).toUpperCase() + r.herb.slice(1)}</span>
+            <span class="contra-text">${escapeHtml(text)}</span>
+            <a class="contra-source" href="${r.source}" target="_blank" rel="noopener">📖 SWSBM Source</a>
+          </div>`;
+        }
       }
     }
 
     if (withoutData.length > 0) {
       const names = withoutData.map(r => r.herb).join(", ");
-      html += `<p class="contra-none">No SWSBM records on file for: ${names}.</p>`;
+      html += `<p class="contra-none" style="margin-top:12px">No drug-interaction records in SWSBM for: ${names} — these herbs have no flagged interactions in this reference.</p>`;
     }
 
     html += `<p class="contra-note">⚕️ ${escapeHtml(data.note)}</p>`;

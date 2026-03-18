@@ -367,26 +367,53 @@ async function fetchMatMedEntry(herbName) {
   };
 }
 
-// Fetch a contraindication entry for an herb (by common name) and return a result object
+// Fetch contraindication entries for an herb using its Latin genus name.
+// HerbMedContra1.txt is organised by drug/condition CATEGORY, with herb
+// entries formatted as "LATIN_GENUS  (common name)" on their own lines.
+// An herb can appear under multiple category headings, so we collect all
+// occurrences and include ~400 chars of context per hit (enough to see
+// which drug class the entry falls under).
 async function fetchContraEntry(herbName) {
   const text = await loadSwsbmFile(SWSBM_CONTRA_URL, "contra");
   if (!text) return null;
 
-  const lower = text.toLowerCase();
-  const term  = herbName.toLowerCase();
-  const idx   = lower.indexOf(term);
-  if (idx === -1) return null;
+  // Resolve to the uppercase Latin genus used as the entry marker.
+  const latin = HERB_TO_LATIN[herbName.toLowerCase()];
+  if (!latin) return null; // herb not in our map → skip rather than false-match
 
-  // Pull surrounding context (200 chars before for section heading, 900 after)
-  const start   = Math.max(0, idx - 200);
-  const end     = Math.min(text.length, idx + 900);
-  const excerpt = text.slice(start, end).trim();
+  // Walk through all occurrences so we capture every drug-class section.
+  const excerpts = [];
+  const marker   = "\n" + latin;   // entries always start on their own line
+  let   pos      = 0;
+
+  while (true) {
+    const idx = text.indexOf(marker, pos);
+    if (idx === -1) break;
+
+    // Back-scan for the nearest section header (slashes or angle-brackets line)
+    // so the reader knows which drug class this warning falls under.
+    const sectionStart = Math.max(0, idx - 400);
+    const linesBefore  = text.slice(sectionStart, idx);
+    // Find the last section-header line (rows of / or <) in that window
+    const headerMatch  = linesBefore.match(/[/<]{10,}[\s\S]*$/);
+    const contextStart = headerMatch
+      ? idx - headerMatch[0].length
+      : idx + 1;
+
+    const end    = Math.min(text.length, idx + 500);
+    const chunk  = text.slice(Math.max(0, contextStart), end).trim();
+    if (chunk.length > 10) excerpts.push(chunk);
+
+    pos = idx + marker.length;
+  }
+
+  if (excerpts.length === 0) return null;
 
   return {
-    herb: herbName,
-    name: "Moore Contraindications",
-    url:  SWSBM_CONTRA_URL,
-    excerpt
+    herb:    herbName,
+    name:    "Moore Contraindications",
+    url:     SWSBM_CONTRA_URL,
+    excerpt: excerpts.join("\n\n── ── ──\n\n")
   };
 }
 
