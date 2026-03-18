@@ -178,6 +178,10 @@ section("Source Map Completeness (server.js introspection)");
   const checks = [
     ["SWSBM-MatMed5",          serverSrc.includes("MatMed5.txt")],
     ["SWSBM-HerbMedContra",    serverSrc.includes("HerbMedContra1.txt")],
+    ["ContraRef-NCCIH",        serverSrc.includes("herb-drug-interactions")],
+    ["ContraRef-AAFP",         serverSrc.includes("aafp.org/pubs/afp")],
+    ["CONTRA_REF_SOURCES",     serverSrc.includes("CONTRA_REF_SOURCES")],
+    ["searchContraRef",        serverSrc.includes("searchContraRef")],
     ["Gladstar-elderberry",    serverSrc.includes("elderberry-medicine-potent-and-powerful")],
     ["Gladstar-echinacea",     serverSrc.includes("echinacea-elderberry-and-herbal-gummies")],
     ["Gladstar-immunity",      serverSrc.includes("15-recommendations-to-boost-immunity")],
@@ -258,6 +262,36 @@ async function research(ailment) {
     pass("RES-004", `research("insomnia") response has herbsFound array`);
   else
     fail("RES-004", `research("insomnia") response has herbsFound array`);
+}
+
+{
+  // topHerbs key must be an array (used to scope contraindications)
+  const data = await research("headache");
+  if (data && Array.isArray(data.topHerbs) && data.topHerbs.length > 0)
+    pass("RES-007", `research("headache") response has non-empty topHerbs array`);
+  else
+    fail("RES-007", `research("headache") response has non-empty topHerbs array`,
+         data ? `topHerbs=${JSON.stringify(data.topHerbs)}` : "null response");
+}
+
+{
+  // topHerbs for a known ailment must include the correct top herb
+  const data = await research("anxiety");
+  if (data?.topHerbs?.includes("chamomile"))
+    pass("RES-008", `topHerbs for "anxiety" includes chamomile`);
+  else
+    fail("RES-008", `topHerbs for "anxiety" includes chamomile`,
+         `topHerbs: ${JSON.stringify(data?.topHerbs)}`);
+}
+
+{
+  // When user types a specific herb name, topHerbs should contain that herb
+  const data = await research("valerian");
+  if (data?.topHerbs?.includes("valerian"))
+    pass("RES-009", `topHerbs for herb-name input "valerian" contains valerian`);
+  else
+    fail("RES-009", `topHerbs for herb-name input "valerian" contains valerian`,
+         `topHerbs: ${JSON.stringify(data?.topHerbs)}`);
 }
 
 {
@@ -665,6 +699,51 @@ section("/api/contraindications — Contraindications Checker");
   else
     fail("CONTRA-008", "result.found is a boolean",
          `typeof found: ${typeof result?.found}`);
+}
+
+{
+  // Each result has a sources array (multi-source support)
+  const r = await POST("/api/contraindications", { herbs: ["st johns wort"] }, { timeout: 45_000 });
+  const data = r.ok ? await r.json() : null;
+  const result = data?.results?.[0];
+  if (result && Array.isArray(result.sources))
+    pass("CONTRA-013", "Each result entry has a sources array");
+  else
+    fail("CONTRA-013", "Each result entry has a sources array",
+         `got: ${JSON.stringify(result)?.slice(0, 120)}`);
+}
+
+{
+  // note field references all three source names
+  const r = await POST("/api/contraindications", { herbs: ["valerian"] }, { timeout: 30_000 });
+  const data = r.ok ? await r.json() : null;
+  const noteHasSources = data?.note?.includes("SWSBM") &&
+                         data?.note?.includes("NCCIH") &&
+                         data?.note?.includes("AAFP");
+  if (noteHasSources)
+    pass("CONTRA-014", "Response note references SWSBM, NCCIH, and AAFP");
+  else
+    fail("CONTRA-014", "Response note references SWSBM, NCCIH, and AAFP",
+         `note: ${data?.note}`);
+}
+
+{
+  // topHerbs is used for contraindications — verify /api/research returns it
+  const data = await research("depression");
+  if (data?.topHerbs?.includes("st johns wort"))
+    pass("CONTRA-015", `topHerbs for "depression" includes st johns wort (key contra herb)`);
+  else
+    skip("CONTRA-015", `topHerbs for "depression" includes st johns wort`,
+         `topHerbs: ${JSON.stringify(data?.topHerbs)}`);
+}
+
+{
+  // HTML: frontend uses topHerbs for lastHerbsFound
+  const html = await (await GET("/")).text();
+  if (html.includes("topHerbs"))
+    pass("CONTRA-016", "index.html references topHerbs for contraindications scoping");
+  else
+    fail("CONTRA-016", "index.html references topHerbs for contraindications scoping");
 }
 
 {

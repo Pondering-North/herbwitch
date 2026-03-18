@@ -893,8 +893,9 @@ async function runPipeline() {
 
     // === AGENT 2: Researcher — server fetches approved sources, no Claude web search ===
     setAgent(2, 'active');
-    const { context, sourceCount, herbsFound } = await fetchResearch(interpreted);
-    lastHerbsFound = herbsFound || [];
+    const { context, sourceCount, herbsFound, topHerbs } = await fetchResearch(interpreted);
+    // Use the map-selected herbs for contraindications, not just what had HTTP data
+    lastHerbsFound = topHerbs || herbsFound || [];
     setAgent(2, 'done');
 
     // === AGENT 3: The Witch — synthesizes pre-fetched research into a response ===
@@ -998,27 +999,40 @@ async function checkContraindications() {
 
         const herbList = withData.map(r => r.herb).join(", ");
         const summary = await callClaude(
-          `You are interpreting herb-drug contraindication data from Michael Moore's clinical reference (SWSBM). The text is organised by drug/condition category.
+          `You are a clinical herbalist interpreting herb-drug contraindication data from three trusted references: SWSBM (Michael Moore), NCCIH, and AAFP.
 
 IMPORTANT: Report ONLY on these specific herbs: ${herbList}.
-If the raw text contains entries for other plant species (e.g. a different Mentha species, or any other Latin name not matching the herbs listed above), ignore them completely — do not mention them.
+If the text contains entries for other plant species or unrelated herbs not in that list, ignore them completely.
 
 For each herb in the list that has recorded contraindications:
 - Bold the common herb name with **name**
-- Use a dash bullet for each drug class or medication interaction
-- Briefly state the nature of the interaction (e.g. additive sedation, reduced drug clearance)
+- Use a dash bullet for each drug class or specific medication interaction
+- State the nature of the interaction concisely (e.g. additive sedation, reduced drug clearance, enhanced blood-thinning)
 - Note any medical conditions that warrant caution
 
-For herbs with no recorded contraindications: bold the name and write "No specific contraindications listed."
+For herbs with no recorded contraindications in any source: bold the name and write "No specific contraindications on record."
 
-Plain English only. No preamble. Total under 350 words.`,
-          `Herbs to report on: ${herbList}\n\nRaw SWSBM data:\n\n${rawContext}`,
-          500
+Plain English only. No preamble. Total under 400 words.`,
+          `Herbs to report on: ${herbList}\n\nContraindication data from SWSBM, NCCIH, and AAFP:\n\n${rawContext}`,
+          550
         );
 
         html += renderContraMarkdown(summary);
+
+        // Collect unique source URLs across all herbs with data
+        const allSources = [];
         for (const r of withData) {
-          html += `<a class="contra-source" href="${r.source}" target="_blank" rel="noopener" style="display:block;margin-top:4px">📖 SWSBM source for ${r.herb}</a>`;
+          for (const s of (r.sources || [])) {
+            if (!allSources.find(x => x.url === s.url)) allSources.push(s);
+          }
+          // fallback if sources array not present
+          if (!r.sources && r.source) {
+            if (!allSources.find(x => x.url === r.source))
+              allSources.push({ name: "SWSBM", url: r.source });
+          }
+        }
+        for (const s of allSources) {
+          html += `<a class="contra-source" href="${s.url}" target="_blank" rel="noopener" style="display:block;margin-top:4px">📖 ${s.name}</a>`;
         }
 
       } catch (_claudeErr) {

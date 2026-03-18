@@ -892,7 +892,12 @@ app.post("/api/research", async (req, res) => {
       ).join("\n\n---\n\n")
     : "No relevant herb information found in approved sources.";
 
-  res.json({ context, sourceCount: found.length, herbsFound: [...new Set(found.map(r => r.herb))] });
+  res.json({
+    context,
+    sourceCount: found.length,
+    herbsFound: [...new Set(found.map(r => r.herb))],
+    topHerbs   // the herbs selected from the ailment map — used by the contra checker
+  });
 });
 
 
@@ -1008,10 +1013,77 @@ app.get("/api/fact", async (req, res) => {
   }
 });
 
+// ── Contraindication reference sources (fetched once, cached) ─
+const CONTRA_REF_SOURCES = [
+  {
+    url:  "https://www.nccih.nih.gov/health/providers/digest/herb-drug-interactions",
+    name: "NCCIH Herb-Drug Interactions"
+  },
+  {
+    url:  "https://www.aafp.org/pubs/afp/issues/2017/0715/p101.html",
+    name: "AAFP — Common Herbal Dietary Supplements"
+  }
+];
+
+// One-time text cache keyed by URL
+const contraRefCache = {};
+
+async function loadContraRefPage(url) {
+  if (contraRefCache[url]) return contraRefCache[url];
+  try {
+    const resp = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        "Accept":     "text/html,application/xhtml+xml"
+      },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!resp.ok) return null;
+    const text = stripHtml(await resp.text());
+    contraRefCache[url] = text;
+    return text;
+  } catch (e) {
+    console.warn(`  Could not load contra ref ${url}: ${e.message}`);
+    return null;
+  }
+}
+
+// Search a cached reference page for mentions of an herb, returning up to
+// three context windows (~300 chars each) where the herb name appears.
+async function searchContraRef(herbName, source) {
+  const text = await loadContraRefPage(source.url);
+  if (!text) return null;
+
+  const lower  = text.toLowerCase();
+  const term   = herbName.toLowerCase();
+  const chunks = [];
+  let   pos    = 0;
+
+  while (chunks.length < 3) {
+    const idx = lower.indexOf(term, pos);
+    if (idx === -1) break;
+    const start = Math.max(0, idx - 80);
+    const end   = Math.min(text.length, idx + 350);
+    chunks.push(text.slice(start, end).trim());
+    pos = idx + term.length;
+  }
+
+  if (chunks.length === 0) return null;
+
+  return {
+    herb:    herbName,
+    name:    source.name,
+    url:     source.url,
+    excerpt: chunks.join("\n\n---\n\n")
+  };
+}
+
 // ── Route: contraindications checker ─────────────────────────
-// Accepts { herbs: ["chamomile", "ginger", ...] }, fetches each
-// herb's entry from the cached SWSBM HerbMedContra1.txt file, and
-// returns structured contraindication data.
+// Accepts { herbs: ["chamomile", "ginger", ...] }.
+// For each herb: queries SWSBM HerbMedContra1.txt (Latin-name search),
+// the NCCIH herb-drug interactions page, and the AAFP AFP article.
+// All found excerpts are returned; the frontend passes them to Claude
+// for a plain-English summary.
 app.post("/api/contraindications", async (req, res) => {
   const { herbs } = req.body;
   if (!herbs || !Array.isArray(herbs) || herbs.length === 0) {
@@ -1022,12 +1094,25 @@ app.post("/api/contraindications", async (req, res) => {
 
   const results = await Promise.all(
     herbs.map(async (herb) => {
-      const entry = await fetchContraEntry(herb);
+      // Fetch from all three sources in parallel
+      const [swsbm, ...refHits] = await Promise.all([
+        fetchContraEntry(herb),
+        ...CONTRA_REF_SOURCES.map(src => searchContraRef(herb, src))
+      ]);
+
+      const allSources = [swsbm, ...refHits].filter(Boolean);
+
+      // Combine text for Claude; keep source attribution
+      const combinedText = allSources.length > 0
+        ? allSources.map(s => `[${s.name}]\n${s.excerpt}`).join("\n\n── ── ──\n\n")
+        : null;
+
       return {
         herb,
-        found: !!entry,
-        text: entry ? entry.excerpt : null,
-        source: entry ? entry.url : null
+        found:   allSources.length > 0,
+        text:    combinedText,
+        source:  swsbm ? swsbm.url : (allSources[0]?.url ?? null),
+        sources: allSources.map(s => ({ name: s.name, url: s.url }))
       };
     })
   );
@@ -1038,7 +1123,7 @@ app.post("/api/contraindications", async (req, res) => {
   res.json({
     results,
     checkedHerbs: herbs,
-    note: "Data sourced from Michael Moore's Herb/Drug Contraindications (SWSBM). Always consult a healthcare provider or pharmacist before combining herbs with medications."
+    note: "Data sourced from SWSBM (Michael Moore), NCCIH, and AAFP. Always consult a healthcare provider or pharmacist before combining herbs with medications."
   });
 });
 
