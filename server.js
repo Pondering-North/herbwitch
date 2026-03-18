@@ -225,7 +225,170 @@ const APPROVED_SOURCES = [
   { url: "https://www.unitedplantsavers.org/milk-thistle-silybum-marianum/",             name: "UnitedPlantSavers", herb: "milk thistle" },
   { url: "https://www.unitedplantsavers.org/mullein-verbascum-thapsus/",                 name: "UnitedPlantSavers", herb: "mullein" },
   { url: "https://www.unitedplantsavers.org/nettle-urtica-dioica/",                      name: "UnitedPlantSavers", herb: "nettle" },
+
+  // ── Rosemary Gladstar / Science & Art of Herbalism ─────────
+  // elderberry
+  { url: "https://scienceandartofherbalism.com/elderberry-medicine-potent-and-powerful/",                                                          name: "Gladstar", herb: "elderberry" },
+  { url: "https://scienceandartofherbalism.com/10-magical-ways-to-incorporate-elderberry-into-your-life/",                                         name: "Gladstar", herb: "elderberry" },
+  { url: "https://scienceandartofherbalism.com/how-to-make-elderberry-syrup/",                                                                     name: "Gladstar", herb: "elderberry" },
+  // echinacea
+  { url: "https://scienceandartofherbalism.com/nurturing-back-to-school-health-with-natures-gifts-echinacea-elderberry-and-herbal-gummies-for-kids/", name: "Gladstar", herb: "echinacea" },
+  { url: "https://scienceandartofherbalism.com/herbal-recommendations-for-influenza-and-viral-illness-in-the-event-of-a-pandemic/",                name: "Gladstar", herb: "echinacea" },
+  // immune-boosting herbs (garlic, licorice root, astragalus)
+  { url: "https://scienceandartofherbalism.com/rosemary-gladstars-15-recommendations-to-boost-immunity/",                                          name: "Gladstar", herb: "garlic" },
+  { url: "https://scienceandartofherbalism.com/herbal-recommendations-for-influenza-and-viral-illness-in-the-event-of-a-pandemic/",                name: "Gladstar", herb: "garlic" },
+  { url: "https://scienceandartofherbalism.com/herbal-recommendations-for-influenza-and-viral-illness-in-the-event-of-a-pandemic/",                name: "Gladstar", herb: "licorice root" },
+  { url: "https://scienceandartofherbalism.com/rosemary-gladstars-15-recommendations-to-boost-immunity/",                                          name: "Gladstar", herb: "ashwagandha" },
+  // calming herbs
+  { url: "https://scienceandartofherbalism.com/8-herbs-that-calm-your-mind-with-rosemary-gladstar-video/",                                         name: "Gladstar", herb: "chamomile" },
+  { url: "https://scienceandartofherbalism.com/8-herbs-that-calm-your-mind-with-rosemary-gladstar-video/",                                         name: "Gladstar", herb: "lavender" },
+  { url: "https://scienceandartofherbalism.com/8-herbs-that-calm-your-mind-with-rosemary-gladstar-video/",                                         name: "Gladstar", herb: "lemon balm" },
+  { url: "https://scienceandartofherbalism.com/8-herbs-that-calm-your-mind-with-rosemary-gladstar-video/",                                         name: "Gladstar", herb: "passionflower" },
+  { url: "https://scienceandartofherbalism.com/8-herbs-that-calm-your-mind-with-rosemary-gladstar-video/",                                         name: "Gladstar", herb: "skullcap" },
+  // sleep/dream herbs
+  { url: "https://scienceandartofherbalism.com/herbal-dreams/",                                                                                    name: "Gladstar", herb: "valerian" },
+  { url: "https://scienceandartofherbalism.com/herbal-dreams/",                                                                                    name: "Gladstar", herb: "passionflower" },
+  { url: "https://scienceandartofherbalism.com/herbal-dreams/",                                                                                    name: "Gladstar", herb: "california poppy" },
+  // mood / spirit
+  { url: "https://scienceandartofherbalism.com/7-ways-to-lighten-your-spirit/",                                                                    name: "Gladstar", herb: "st johns wort" },
+  { url: "https://scienceandartofherbalism.com/7-ways-to-lighten-your-spirit/",                                                                    name: "Gladstar", herb: "lemon balm" },
+  // fire cider / ginger / warming herbs
+  { url: "https://scienceandartofherbalism.com/whats-all-the-fuss-about-fire-cider/",                                                              name: "Gladstar", herb: "ginger" },
+  { url: "https://scienceandartofherbalism.com/what-is-fire-cider/",                                                                               name: "Gladstar", herb: "ginger" },
+  // general tea / preparation
+  { url: "https://scienceandartofherbalism.com/the-art-of-making-a-great-cup-of-tea/",                                                             name: "Gladstar", herb: "chamomile" },
 ];
+
+// ── Michael Moore / SWSBM — plain-text monograph sources ──────
+// These are large .txt files fetched once per server lifetime and
+// searched in-memory for each herb.  Two files are used:
+//   MatMed5  — preparation methods, parts used, dosage (indexed by Latin name)
+//   HerbMedContra1 — herb-drug / herb-condition contraindications
+
+const SWSBM_MATMED_URL = "https://www.swsbm.com/ManualsMM/MatMed5.txt";
+const SWSBM_CONTRA_URL = "https://www.swsbm.com/ManualsMM/HerbMedContra1.txt";
+
+// Common name → Latin genus as it appears capitalised at the start of each
+// MatMed5 entry (e.g. "ACHILLEA" for yarrow)
+const HERB_TO_LATIN = {
+  "chamomile":        "MATRICARIA",
+  "ginger":           "ZINGIBER",
+  "peppermint":       "MENTHA",
+  "lavender":         "LAVANDULA",
+  "valerian":         "VALERIANA",
+  "st johns wort":    "HYPERICUM",
+  "echinacea":        "ECHINACEA",
+  "elderberry":       "SAMBUCUS",
+  "turmeric":         "CURCUMA",
+  "licorice root":    "GLYCYRRHIZA",
+  "lemon balm":       "MELISSA",
+  "passionflower":    "PASSIFLORA",
+  "ashwagandha":      "WITHANIA",
+  "black cohosh":     "ACTAEA",
+  "feverfew":         "TANACETUM",
+  "garlic":           "ALLIUM",
+  "ginkgo":           "GINKGO",
+  "ginseng":          "PANAX",
+  "kava":             "PIPER",
+  "milk thistle":     "SILYBUM",
+  "saw palmetto":     "SERENOA",
+  "green tea":        "CAMELLIA",
+  "hawthorn":         "CRATAEGUS",
+  "nettle":           "URTICA",
+  "red clover":       "TRIFOLIUM",
+  "rhodiola":         "RHODIOLA",
+  "skullcap":         "SCUTELLARIA",
+  "willow bark":      "SALIX",
+  "yarrow":           "ACHILLEA",
+  "dong quai":        "ANGELICA",
+  "holy basil":       "OCIMUM",
+  "hops":             "HUMULUS",
+  "mullein":          "VERBASCUM",
+  "slippery elm":     "ULMUS",
+  "california poppy": "ESCHSCHOLZIA",
+  "dandelion":        "TARAXACUM",
+  "fennel":           "FOENICULUM",
+  "sage":             "SALVIA",
+  "thyme":            "THYMUS",
+  "cinnamon":         "CINNAMOMUM",
+  "horsetail":        "EQUISETUM",
+  "hibiscus":         "HIBISCUS",
+  "flaxseed":         "LINUM",
+  "horse chestnut":   "AESCULUS",
+  "marshmallow root": "ALTHAEA",
+  "calendula":        "CALENDULA",
+  "clove":            "EUGENIA",
+  "berberine":        "BERBERIS",
+  "pumpkin seed":     "CUCURBITA",
+};
+
+// In-memory cache: populated on first request, reused for the server lifetime
+const swsbmCache = { matmed: null, contra: null };
+
+async function loadSwsbmFile(url, cacheKey) {
+  if (swsbmCache[cacheKey]) return swsbmCache[cacheKey];
+  try {
+    const resp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0", "Accept": "text/plain, text/html" },
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!resp.ok) return null;
+    const text = await resp.text();
+    swsbmCache[cacheKey] = text;
+    console.log(`   SWSBM ${cacheKey} cached (${Math.round(text.length / 1024)} KB)`);
+    return text;
+  } catch (err) {
+    console.warn(`  Could not load SWSBM ${cacheKey}: ${err.message}`);
+    return null;
+  }
+}
+
+// Fetch a MatMed5 entry for an herb (by Latin name) and return a result object
+async function fetchMatMedEntry(herbName) {
+  const latin = HERB_TO_LATIN[herbName];
+  if (!latin) return null;
+  const text = await loadSwsbmFile(SWSBM_MATMED_URL, "matmed");
+  if (!text) return null;
+
+  // Entries start on their own line with the capitalised Latin name
+  const marker = "\n" + latin;
+  const idx = text.indexOf(marker);
+  if (idx === -1) return null;
+
+  // Grab up to 1 200 chars of the entry (enough for parts-used + preparation)
+  const raw = text.slice(idx + 1, idx + 1200).trim();
+  if (raw.length < 30) return null;
+
+  return {
+    herb: herbName,
+    name: "Moore Materia Medica",
+    url:  SWSBM_MATMED_URL,
+    excerpt: `${latin} (${herbName}):\n${raw}`
+  };
+}
+
+// Fetch a contraindication entry for an herb (by common name) and return a result object
+async function fetchContraEntry(herbName) {
+  const text = await loadSwsbmFile(SWSBM_CONTRA_URL, "contra");
+  if (!text) return null;
+
+  const lower = text.toLowerCase();
+  const term  = herbName.toLowerCase();
+  const idx   = lower.indexOf(term);
+  if (idx === -1) return null;
+
+  // Pull surrounding context (200 chars before for section heading, 900 after)
+  const start   = Math.max(0, idx - 200);
+  const end     = Math.min(text.length, idx + 900);
+  const excerpt = text.slice(start, end).trim();
+
+  return {
+    herb: herbName,
+    name: "Moore Contraindications",
+    url:  SWSBM_CONTRA_URL,
+    excerpt
+  };
+}
 
 /// ── Ailment → herb mapping ────────────────────────────────────
 const AILMENT_HERB_MAP = {
@@ -597,7 +760,13 @@ app.post("/api/research", async (req, res) => {
 
   // Find relevant herbs from ailment map
   const ailmentList = ailments.toLowerCase().split(/,\s*/);
-  const relevantHerbs = new Set();
+  // Two-tier herb collection:
+  //   priorityHerbs — from exact / substring key matches (high confidence)
+  //   extraHerbs    — from word-overlap-only matches (broadening fallback)
+  // topHerbs is built priority-first so the most relevant herbs are always
+  // in the top 5, even when word-overlap pulls in many additional herbs.
+  const priorityHerbs = new Set();
+  const extraHerbs    = new Set();
 
   // Build a set of all known herb names from APPROVED_SOURCES for direct lookup
   const knownHerbs = new Set(APPROVED_SOURCES.map(s => s.herb));
@@ -607,24 +776,34 @@ app.post("/api/research", async (req, res) => {
 
     // Direct herb-name match — user typed a herb name itself (e.g. "lavender", "ginger")
     if (knownHerbs.has(ailmentClean)) {
-      relevantHerbs.add(ailmentClean);
+      priorityHerbs.add(ailmentClean);
       continue; // skip ailment map lookup for this token
     }
 
     for (const [key, herbs] of Object.entries(AILMENT_HERB_MAP)) {
-      // Match if: ailment contains key, key contains ailment,
-      // or any individual word in the ailment matches any word in the key
       const ailmentWords = ailmentClean.split(/\s+/);
-      const keyWords = key.split(/\s+/);
-      const wordOverlap = ailmentWords.some(w => w.length > 3 && keyWords.some(k => k.includes(w) || w.includes(k)));
+      const keyWords     = key.split(/\s+/);
 
-      if (ailmentClean.includes(key) || key.includes(ailmentClean) || wordOverlap) {
-        herbs.forEach(h => relevantHerbs.add(h));
+      const isSubstring  = ailmentClean.includes(key) || key.includes(ailmentClean);
+      const wordOverlap  = !isSubstring && ailmentWords.some(
+        w => w.length > 3 && keyWords.some(k => k.includes(w) || w.includes(k))
+      );
+
+      if (isSubstring) {
+        herbs.forEach(h => priorityHerbs.add(h));
+      } else if (wordOverlap) {
+        herbs.forEach(h => extraHerbs.add(h));
       }
     }
   }
 
-  // If no mapping found, use a default set of common herbs
+  // Merge: priority herbs first, then extra herbs not already captured
+  const relevantHerbs = new Set([
+    ...priorityHerbs,
+    ...[...extraHerbs].filter(h => !priorityHerbs.has(h))
+  ]);
+
+  // If no mapping found at all, fall back to a default set of common herbs
   if (relevantHerbs.size === 0) {
     console.log("   No mapping found — using default herbs");
     ["chamomile", "ginger", "peppermint", "lavender", "lemon balm"].forEach(h => relevantHerbs.add(h));
@@ -640,11 +819,19 @@ app.post("/api/research", async (req, res) => {
 
   console.log(`   Fetching ${sourcesToFetch.length} pages (${topHerbs.join(", ")} × ${sourceNames})...`);
 
-  // Fetch all in parallel
-  const results = await Promise.all(sourcesToFetch.map(fetchHerbPage));
-  const found = results.filter(Boolean);
+  // Fetch HTML pages + SWSBM text-file entries in parallel
+  const [htmlResults, ...swsbmResults] = await Promise.all([
+    Promise.all(sourcesToFetch.map(fetchHerbPage)),
+    ...topHerbs.flatMap(herb => [fetchMatMedEntry(herb), fetchContraEntry(herb)])
+  ]);
 
-  console.log(`   Got excerpts for: ${found.map(r => r.herb).join(", ") || "none"}`);
+  const found = [
+    ...htmlResults.filter(Boolean),
+    ...swsbmResults.filter(Boolean)
+  ];
+
+  console.log(`   Got excerpts for: ${[...new Set(found.map(r => r.herb))].join(", ") || "none"}`);
+  console.log(`   Sources used: ${[...new Set(found.map(r => r.name))].join(", ") || "none"}`);
 
   const context = found.length > 0
     ? found.map(r =>
@@ -652,7 +839,7 @@ app.post("/api/research", async (req, res) => {
       ).join("\n\n---\n\n")
     : "No relevant herb information found in approved sources.";
 
-  res.json({ context, sourceCount: found.length, herbsFound: found.map(r => r.herb) });
+  res.json({ context, sourceCount: found.length, herbsFound: [...new Set(found.map(r => r.herb))] });
 });
 
 
