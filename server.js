@@ -1127,6 +1127,17 @@ app.post("/api/contraindications", async (req, res) => {
   });
 });
 
+// ── Route: known herbs list ───────────────────────────────────
+// Used by the frontend to detect herb-name queries before Agent 1 runs,
+// so "lavender" is never mis-interpreted as a list of ailments.
+app.get("/api/herbs", (_req, res) => {
+  const herbs = [...new Set([
+    ...APPROVED_SOURCES.map(s => s.herb),
+    ...Object.keys(HERB_TO_LATIN)
+  ])].sort();
+  res.json({ herbs });
+});
+
 // ── Route: claude proxy ───────────────────────────────────────
 app.post("/api/claude", async (req, res) => {
   const apiKey = process.env.ANTHROPIC_API_KEY;

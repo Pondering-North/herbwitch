@@ -295,6 +295,68 @@ async function research(ailment) {
 }
 
 {
+  // When user types a herb name, topHerbs must contain ONLY that herb (no extras)
+  const data = await research("lavender");
+  const top = data?.topHerbs ?? [];
+  if (top.length === 1 && top[0] === "lavender")
+    pass("RES-010", `research("lavender") → topHerbs contains exactly ["lavender"]`);
+  else
+    fail("RES-010", `research("lavender") → topHerbs contains exactly ["lavender"]`,
+         `topHerbs: ${JSON.stringify(top)}`);
+}
+
+{
+  // GET /api/herbs returns an array of known herb names
+  const r   = await GET("/api/herbs");
+  const data = r.ok ? await r.json() : null;
+  if (Array.isArray(data?.herbs) && data.herbs.length > 0)
+    pass("HERBS-001", `GET /api/herbs returns a non-empty herbs array`);
+  else
+    fail("HERBS-001", `GET /api/herbs returns a non-empty herbs array`,
+         r.ok ? `body: ${JSON.stringify(data)?.slice(0,80)}` : `HTTP ${r.status}`);
+}
+
+{
+  // GET /api/herbs includes common herbs like lavender and ginger
+  const r    = await GET("/api/herbs");
+  const data = r.ok ? await r.json() : null;
+  const herbs = data?.herbs ?? [];
+  if (herbs.includes("lavender") && herbs.includes("ginger"))
+    pass("HERBS-002", `GET /api/herbs includes lavender and ginger`);
+  else
+    fail("HERBS-002", `GET /api/herbs includes lavender and ginger`,
+         `got: ${herbs.slice(0,10).join(", ")}`);
+}
+
+{
+  // GET /api/herbs Content-Type is application/json
+  const r = await GET("/api/herbs");
+  if (r.headers.get("content-type")?.includes("application/json"))
+    pass("HERBS-003", `GET /api/herbs Content-Type is application/json`);
+  else
+    fail("HERBS-003", `GET /api/herbs Content-Type is application/json`,
+         `got: ${r.headers.get("content-type")}`);
+}
+
+{
+  // Frontend: knownHerbsSet variable present (herb-query short-circuit)
+  const html = await (await GET("/")).text();
+  if (html.includes("knownHerbsSet") && html.includes("isHerbQuery"))
+    pass("HERBS-004", `index.html declares knownHerbsSet and isHerbQuery for herb-query detection`);
+  else
+    fail("HERBS-004", `index.html declares knownHerbsSet and isHerbQuery for herb-query detection`);
+}
+
+{
+  // Frontend: /api/herbs is fetched on DOMContentLoaded
+  const html = await (await GET("/")).text();
+  if (html.includes("/api/herbs"))
+    pass("HERBS-005", `index.html fetches /api/herbs on load`);
+  else
+    fail("HERBS-005", `index.html fetches /api/herbs on load`);
+}
+
+{
   // Default herbs fire when no mapping found
   const data = await research("zorbflux syndrome");
   if (data && data.context && data.context.length > 50)

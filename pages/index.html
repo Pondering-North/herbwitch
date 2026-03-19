@@ -881,14 +881,27 @@ async function runPipeline() {
   document.getElementById("pipeline").classList.add("visible");
   document.getElementById("result-section").classList.remove("visible");
 
+  // Detect if the user typed a single known herb name (e.g. "lavender", "ginger").
+  // If so, skip Agent 1's ailment-extraction — it would convert "lavender" into
+  // ailments like "anxiety, sleep" and then surface unrelated herbs in the results.
+  const inputNorm  = ailment.trim().toLowerCase();
+  const isHerbQuery = knownHerbsSet.size > 0 && knownHerbsSet.has(inputNorm);
+
   try {
     // === AGENT 1: Interpreter ===
     setAgent(1, 'active');
-    const interpreted = await callClaude(
-      `You are The Interpreter. Extract physical ailments from the user's message. Output ONLY a comma-separated list of ailments. No explanations, no recommendations.`,
-      ailment,
-      150
-    );
+    let interpreted;
+    if (isHerbQuery) {
+      // User typed a herb name directly — use it as-is so the researcher
+      // fetches ONLY that herb's sources, not herbs for derived ailments.
+      interpreted = inputNorm;
+    } else {
+      interpreted = await callClaude(
+        `You are The Interpreter. Extract physical ailments from the user's message. Output ONLY a comma-separated list of ailments. No explanations, no recommendations.`,
+        ailment,
+        150
+      );
+    }
     setAgent(1, 'done');
 
     // === AGENT 2: Researcher — server fetches approved sources, no Claude web search ===
@@ -900,12 +913,19 @@ async function runPipeline() {
 
     // === AGENT 3: The Witch — synthesizes pre-fetched research into a response ===
     setAgent(3, 'active');
+
+    // When the user asked about a specific herb, constrain the response to that herb only.
+    const herbFocusRule = isHerbQuery
+      ? `- The user asked specifically about **${inputNorm}**. Focus ONLY on ${inputNorm}. Do NOT introduce or recommend other herbs, even if they have related uses. Mention other herbs only if they are commonly combined WITH ${inputNorm} in a preparation — and only briefly.`
+      : `- Only mention herbs that genuinely have traditional or evidence-based use for the complaint`;
+
     const remedy = await callClaude(
       `You are a knowledgeable, practical herbalist. You are given excerpts from trusted herbal medicine sources. Use them as your primary reference.
 
 Rules:
 - Prioritise information from the provided source excerpts
-- If the excerpts are sparse or don't cover all relevant herbs, draw on your own herbalism knowledge to give a complete, useful answer — but only mention herbs that genuinely have traditional or evidence-based use for the complaint
+- If the excerpts are sparse, draw on your own herbalism knowledge to give a complete, useful answer
+${herbFocusRule}
 - For each herb: bold the name (**Herb Name**), state plainly what it helps with, give specific preparation instructions (quantity, steep time, water temperature), and say when to take it
 - After each herb, add a source line: if an excerpt URL is available for that herb, use *Source: [url]*; valid source domains are nccih.nih.gov, mskcc.org, examine.com, medlineplus.gov, unitedplantsavers.org, scienceandartofherbalism.com, and swsbm.com — otherwise omit the source line rather than guessing a URL
 - Use ## headers to separate sections if the person has multiple ailments
@@ -1096,7 +1116,21 @@ async function loadDailyFact() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// Known herb names fetched from the server on load.
+// Used to detect when the user typed a herb directly so we can
+// skip Agent 1's ailment-extraction and focus Agent 3 on that herb only.
+let knownHerbsSet = new Set();
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load known herbs list
+  try {
+    const r = await fetch('/api/herbs');
+    if (r.ok) {
+      const data = await r.json();
+      knownHerbsSet = new Set(data.herbs.map(h => h.toLowerCase()));
+    }
+  } catch (_) { /* non-fatal — falls back to normal interpretation */ }
+
   const widget = document.getElementById('fact-widget');
   const closeBtn = document.getElementById('fact-close');
   const dismissedOn = localStorage.getItem('herbwitch_fact_dismissed');
