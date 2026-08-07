@@ -988,7 +988,7 @@ app.get("/api/fact", async (req, res) => {
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "claude-sonnet-5",
         max_tokens: 120,
         system: `You write one-sentence herbal facts for a website widget. Be specific, factual, and direct. No flowery language. Bold the herb name using **name**. Maximum 35 words. Output only the fact sentence, nothing else.`,
         messages: [{
